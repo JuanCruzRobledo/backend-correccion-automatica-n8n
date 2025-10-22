@@ -8,7 +8,6 @@ const courseSchema = new mongoose.Schema(
     course_id: {
       type: String,
       required: [true, 'El ID del curso es requerido'],
-      unique: true,
       trim: true,
       lowercase: true,
       match: [/^[a-z0-9-]+$/, 'El ID debe contener solo letras minúsculas, números y guiones'],
@@ -37,6 +36,9 @@ const courseSchema = new mongoose.Schema(
 // Índices compuestos para consultas eficientes
 courseSchema.index({ course_id: 1, deleted: 1 });
 courseSchema.index({ university_id: 1, deleted: 1 });
+
+// Evita duplicados dentro de una misma universidad
+courseSchema.index({ university_id: 1, course_id: 1 }, { unique: true });
 
 /**
  * Método estático para obtener cursos activos

@@ -338,12 +338,9 @@ const seedDatabase = async () => {
     await connectDB();
 
     // Limpiar colecciones existentes (opcional - comentar en producción)
-    console.log('🗑️  Limpiando colecciones existentes...');
-    await University.deleteMany({});
-    await Course.deleteMany({});
-    await Rubric.deleteMany({});
-    await User.deleteMany({});
-    console.log('✅ Colecciones limpiadas\n');
+    console.log('🧨 Borrando base de datos completa (colecciones + índices)...');
+    await mongoose.connection.dropDatabase();
+    console.log('✅ Base eliminada completamente\n');
 
     // Migrar universidades
     console.log('🏫 Migrando universidades...');

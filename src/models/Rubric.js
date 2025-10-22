@@ -8,7 +8,6 @@ const rubricSchema = new mongoose.Schema(
     rubric_id: {
       type: String,
       required: [true, 'El ID de la rúbrica es requerido'],
-      unique: true,
       trim: true,
     },
     name: {
@@ -62,6 +61,9 @@ const rubricSchema = new mongoose.Schema(
 // Índices compuestos para consultas eficientes
 rubricSchema.index({ rubric_id: 1, deleted: 1 });
 rubricSchema.index({ university_id: 1, course_id: 1, deleted: 1 });
+
+// Evitar duplicados por universidad + curso + rubric_id
+rubricSchema.index({ university_id: 1, course_id: 1, rubric_id: 1 }, { unique: true });
 
 /**
  * Método estático para obtener rúbricas activas
