@@ -10,8 +10,13 @@ import { connectDB } from './config/database.js';
 
 // Importar rutas
 import authRoutes from './routes/authRoutes.js';
+import profileRoutes from './routes/profileRoutes.js';
+import gradingRoutes from './routes/gradingRoutes.js';
 import universityRoutes from './routes/universityRoutes.js';
+import facultyRoutes from './routes/facultyRoutes.js';
+import careerRoutes from './routes/careerRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
+import commissionRoutes from './routes/commissionRoutes.js';
 import rubricRoutes from './routes/rubricRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 
@@ -40,8 +45,13 @@ if (process.env.NODE_ENV === 'development') {
 
 // Rutas
 app.use('/api/auth', authRoutes);
+app.use('/api', profileRoutes); // Rutas de perfil (/api/profile)
+app.use('/api', gradingRoutes); // Rutas de corrección (/api/grade)
 app.use('/api/universities', universityRoutes);
+app.use('/api/faculties', facultyRoutes);
+app.use('/api/careers', careerRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/commissions', commissionRoutes);
 app.use('/api/rubrics', rubricRoutes);
 app.use('/api/users', userRoutes);
 
@@ -59,11 +69,15 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'API de Corrección Automática',
-    version: '1.0.0',
+    version: '2.1.0',
     endpoints: {
       auth: '/api/auth',
+      profile: '/api/profile',
       universities: '/api/universities',
+      faculties: '/api/faculties',
+      careers: '/api/careers',
       courses: '/api/courses',
+      commissions: '/api/commissions',
       rubrics: '/api/rubrics',
       users: '/api/users',
       health: '/health',
@@ -124,7 +138,10 @@ const startServer = async () => {
       console.log(`   - GET  http://localhost:${PORT}/health`);
       console.log(`   - POST http://localhost:${PORT}/api/auth/login`);
       console.log(`   - GET  http://localhost:${PORT}/api/universities`);
+      console.log(`   - GET  http://localhost:${PORT}/api/faculties`);
+      console.log(`   - GET  http://localhost:${PORT}/api/careers`);
       console.log(`   - GET  http://localhost:${PORT}/api/courses`);
+      console.log(`   - GET  http://localhost:${PORT}/api/commissions`);
       console.log(`   - GET  http://localhost:${PORT}/api/rubrics`);
       console.log(`   - GET  http://localhost:${PORT}/api/users`);
       console.log('='.repeat(60));

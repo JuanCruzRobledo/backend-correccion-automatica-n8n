@@ -1,13 +1,17 @@
 /**
  * Script de migración de datos iniciales
- * Migra universidades, cursos, rúbricas y usuarios desde datos hardcodeados
+ * Migra universidades, facultades, carreras, cursos, comisiones, rúbricas y usuarios
+ * con la nueva jerarquía completa
  */
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { connectDB, disconnectDB } from '../src/config/database.js';
 import University from '../src/models/University.js';
+import Faculty from '../src/models/Faculty.js';
+import Career from '../src/models/Career.js';
 import Course from '../src/models/Course.js';
-import Rubric from '../src/models/Rubric.js';
+import Commission from '../src/models/Commission.js';
+import Rubric, { RUBRIC_TYPES } from '../src/models/Rubric.js';
 import User from '../src/models/User.js';
 
 // Cargar variables de entorno
@@ -15,42 +19,67 @@ dotenv.config();
 
 /**
  * Datos de universidades
+ * Ahora solo hay 1 universidad: UTN
  */
 const universities = [
-  { university_id: 'utn-frm', name: 'UTN - Facultad Regional Mendoza' },
-  { university_id: 'utn-frsn', name: 'UTN - Facultad Regional San Nicolás' },
-  { university_id: 'utn-fra', name: 'UTN - Facultad Regional Avellaneda' },
-  { university_id: 'utn-frba', name: 'UTN - Facultad Regional Buenos Aires' },
+  { university_id: 'utn', name: 'Universidad Tecnológica Nacional (UTN)' },
 ];
 
 /**
- * Datos de cursos por universidad
+ * Datos de facultades (Regional = Facultad en este contexto)
+ * Todas pertenecen a la universidad 'utn'
  */
+const faculties = [
+  { faculty_id: 'frm', name: 'Facultad Regional Mendoza', university_id: 'utn' },
+  { faculty_id: 'frsn', name: 'Facultad Regional San Nicolás', university_id: 'utn' },
+  { faculty_id: 'fra', name: 'Facultad Regional Avellaneda', university_id: 'utn' },
+  { faculty_id: 'frba', name: 'Facultad Regional Buenos Aires', university_id: 'utn' },
+];
+
+/**
+ * Datos de carreras
+ * Todas pertenecen a la universidad 'utn'
+ */
+const careers = [
+  // FRM
+  { career_id: 'isi-frm', name: 'Ingeniería en Sistemas de Información', faculty_id: 'frm', university_id: 'utn' },
+  // FRSN
+  { career_id: 'isi-frsn', name: 'Ingeniería en Sistemas de Información', faculty_id: 'frsn', university_id: 'utn' },
+  // FRA
+  { career_id: 'isi-fra', name: 'Ingeniería en Sistemas de Información', faculty_id: 'fra', university_id: 'utn' },
+  // FRBA
+  { career_id: 'isi-frba', name: 'Ingeniería en Sistemas de Información', faculty_id: 'frba', university_id: 'utn' },
+];
+
+/**
+ * Datos de cursos (ahora con año y nueva jerarquía)
+ */
+const currentYear = 2025;
 const courses = [
-  // UTN FRM
-  { course_id: 'programacion-1', name: 'Programación 1', university_id: 'utn-frm' },
-  { course_id: 'programacion-2', name: 'Programación 2', university_id: 'utn-frm' },
-  { course_id: 'programacion-3', name: 'Programación 3', university_id: 'utn-frm' },
-  { course_id: 'bases-de-datos-1', name: 'Bases de Datos 1', university_id: 'utn-frm' },
-  { course_id: 'disenio-de-sistemas', name: 'Diseño de Sistemas', university_id: 'utn-frm' },
+  // UTN FRM - ISI
+  { course_id: `${currentYear}-programacion-1`, name: 'Programación 1', year: currentYear, career_id: 'isi-frm', faculty_id: 'frm', university_id: 'utn' },
+  { course_id: `${currentYear}-programacion-2`, name: 'Programación 2', year: currentYear, career_id: 'isi-frm', faculty_id: 'frm', university_id: 'utn' },
+  { course_id: `${currentYear}-programacion-3`, name: 'Programación 3', year: currentYear, career_id: 'isi-frm', faculty_id: 'frm', university_id: 'utn' },
+  { course_id: `${currentYear}-bases-de-datos-1`, name: 'Bases de Datos 1', year: currentYear, career_id: 'isi-frm', faculty_id: 'frm', university_id: 'utn' },
+  { course_id: `${currentYear}-disenio-de-sistemas`, name: 'Diseño de Sistemas', year: currentYear, career_id: 'isi-frm', faculty_id: 'frm', university_id: 'utn' },
 
-  // UTN FRSN
-  { course_id: 'programacion-1', name: 'Programación 1', university_id: 'utn-frsn' },
-  { course_id: 'programacion-2', name: 'Programación 2', university_id: 'utn-frsn' },
-  { course_id: 'programacion-3', name: 'Programación 3', university_id: 'utn-frsn' },
-  { course_id: 'bases-de-datos-1', name: 'Bases de Datos 1', university_id: 'utn-frsn' },
+  // UTN FRSN - ISI
+  { course_id: `${currentYear}-programacion-1`, name: 'Programación 1', year: currentYear, career_id: 'isi-frsn', faculty_id: 'frsn', university_id: 'utn' },
+  { course_id: `${currentYear}-programacion-2`, name: 'Programación 2', year: currentYear, career_id: 'isi-frsn', faculty_id: 'frsn', university_id: 'utn' },
+  { course_id: `${currentYear}-programacion-3`, name: 'Programación 3', year: currentYear, career_id: 'isi-frsn', faculty_id: 'frsn', university_id: 'utn' },
+  { course_id: `${currentYear}-bases-de-datos-1`, name: 'Bases de Datos 1', year: currentYear, career_id: 'isi-frsn', faculty_id: 'frsn', university_id: 'utn' },
 
-  // UTN FRA
-  { course_id: 'programacion-1', name: 'Programación 1', university_id: 'utn-fra' },
-  { course_id: 'programacion-2', name: 'Programación 2', university_id: 'utn-fra' },
-  { course_id: 'programacion-3', name: 'Programación 3', university_id: 'utn-fra' },
-  { course_id: 'bases-de-datos-1', name: 'Bases de Datos 1', university_id: 'utn-fra' },
+  // UTN FRA - ISI
+  { course_id: `${currentYear}-programacion-1`, name: 'Programación 1', year: currentYear, career_id: 'isi-fra', faculty_id: 'fra', university_id: 'utn' },
+  { course_id: `${currentYear}-programacion-2`, name: 'Programación 2', year: currentYear, career_id: 'isi-fra', faculty_id: 'fra', university_id: 'utn' },
+  { course_id: `${currentYear}-programacion-3`, name: 'Programación 3', year: currentYear, career_id: 'isi-fra', faculty_id: 'fra', university_id: 'utn' },
+  { course_id: `${currentYear}-bases-de-datos-1`, name: 'Bases de Datos 1', year: currentYear, career_id: 'isi-fra', faculty_id: 'fra', university_id: 'utn' },
 
-  // UTN FRBA
-  { course_id: 'programacion-1', name: 'Programación 1', university_id: 'utn-frba' },
-  { course_id: 'programacion-2', name: 'Programación 2', university_id: 'utn-frba' },
-  { course_id: 'programacion-3', name: 'Programación 3', university_id: 'utn-frba' },
-  { course_id: 'bases-de-datos-1', name: 'Bases de Datos 1', university_id: 'utn-frba' },
+  // UTN FRBA - ISI
+  { course_id: `${currentYear}-programacion-1`, name: 'Programación 1', year: currentYear, career_id: 'isi-frba', faculty_id: 'frba', university_id: 'utn' },
+  { course_id: `${currentYear}-programacion-2`, name: 'Programación 2', year: currentYear, career_id: 'isi-frba', faculty_id: 'frba', university_id: 'utn' },
+  { course_id: `${currentYear}-programacion-3`, name: 'Programación 3', year: currentYear, career_id: 'isi-frba', faculty_id: 'frba', university_id: 'utn' },
+  { course_id: `${currentYear}-bases-de-datos-1`, name: 'Bases de Datos 1', year: currentYear, career_id: 'isi-frba', faculty_id: 'frba', university_id: 'utn' },
 ];
 
 /**
@@ -332,7 +361,7 @@ const rubric2JSON = {
  */
 const seedDatabase = async () => {
   try {
-    console.log('🌱 Iniciando migración de datos...\n');
+    console.log('🌱 Iniciando migración de datos con nueva jerarquía...\n');
 
     // Conectar a MongoDB
     await connectDB();
@@ -342,83 +371,144 @@ const seedDatabase = async () => {
     await mongoose.connection.dropDatabase();
     console.log('✅ Base eliminada completamente\n');
 
-    // Migrar universidades
+    // 1. Migrar universidades
     console.log('🏫 Migrando universidades...');
     const createdUniversities = await University.insertMany(universities);
     console.log(`✅ ${createdUniversities.length} universidades creadas\n`);
 
-    // Migrar cursos
+    // 2. Migrar facultades
+    console.log('🏛️  Migrando facultades...');
+    const createdFaculties = await Faculty.insertMany(faculties);
+    console.log(`✅ ${createdFaculties.length} facultades creadas\n`);
+
+    // 3. Migrar carreras
+    console.log('🎓 Migrando carreras...');
+    const createdCareers = await Career.insertMany(careers);
+    console.log(`✅ ${createdCareers.length} carreras creadas\n`);
+
+    // 4. Migrar cursos
     console.log('📚 Migrando cursos...');
     const createdCourses = await Course.insertMany(courses);
     console.log(`✅ ${createdCourses.length} cursos creados\n`);
 
-    // Migrar rúbricas
-    console.log('📋 Migrando rúbricas...');
+    // 5. Crear comisiones para cada curso
+    console.log('👥 Creando comisiones...');
+    const commissions = [];
+    for (const course of courses) {
+      // Crear 2 comisiones por curso como ejemplo
+      for (let i = 1; i <= 2; i++) {
+        commissions.push({
+          commission_id: `${course.course_id}-comision-${i}`,
+          name: `Comisión ${i} - ${course.name}`,
+          course_id: course.course_id,
+          career_id: course.career_id,
+          faculty_id: course.faculty_id,
+          university_id: course.university_id,
+          year: course.year,
+          professor_name: i === 1 ? 'Prof. Juan Pérez' : 'Prof. María González',
+          professor_email: i === 1 ? 'juan.perez@example.com' : 'maria.gonzalez@example.com',
+        });
+      }
+    }
+    const createdCommissions = await Commission.insertMany(commissions);
+    console.log(`✅ ${createdCommissions.length} comisiones creadas\n`);
 
-    // Rúbrica 1: TP Listas (para todas las UTN en Programación 1)
+    // 6. Migrar rúbricas con nueva estructura
+    console.log('📋 Migrando rúbricas...');
     const rubrics = [];
-    for (const uni of universities) {
+
+    // Rúbrica 1: TP Listas (para todas las comisiones de Programación 1)
+    const prog1Commissions = createdCommissions.filter(c => c.course_id.includes('programacion-1'));
+    for (const commission of prog1Commissions) {
+      const course = courses.find(c => c.course_id === commission.course_id);
       rubrics.push({
-        rubric_id: `${uni.university_id}-practico-5-listas`,
+        rubric_id: Rubric.generateRubricId(commission.commission_id, RUBRIC_TYPES.TP, 1),
         name: 'TP Listas',
-        university_id: uni.university_id,
-        course_id: 'programacion-1',
+        commission_id: commission.commission_id,
+        course_id: commission.course_id,
+        career_id: commission.career_id,
+        faculty_id: commission.faculty_id,
+        university_id: commission.university_id,
+        rubric_type: RUBRIC_TYPES.TP,
+        rubric_number: 1,
+        year: course.year,
         rubric_json: rubric1JSON,
         source: 'manual',
       });
     }
 
-    // Rúbrica 2: Parcial PythonForestal (solo para UTN-FRM en Diseño de Sistemas)
-    rubrics.push({
-      rubric_id: 'utn-frm-parcial-pythonforestal',
-      name: 'Parcial PythonForestal',
-      university_id: 'utn-frm',
-      course_id: 'disenio-de-sistemas',
-      rubric_json: rubric2JSON,
-      source: 'manual',
-    });
+    // Rúbrica 2: Parcial PythonForestal (solo para comisiones de Diseño de Sistemas en FRM)
+    const designCommissions = createdCommissions.filter(
+      c => c.course_id.includes('disenio-de-sistemas') && c.faculty_id === 'frm'
+    );
+    for (const commission of designCommissions) {
+      const course = courses.find(c => c.course_id === commission.course_id);
+      rubrics.push({
+        rubric_id: Rubric.generateRubricId(commission.commission_id, RUBRIC_TYPES.PARCIAL_1, 1),
+        name: 'Parcial 1 - PythonForestal',
+        commission_id: commission.commission_id,
+        course_id: commission.course_id,
+        career_id: commission.career_id,
+        faculty_id: commission.faculty_id,
+        university_id: commission.university_id,
+        rubric_type: RUBRIC_TYPES.PARCIAL_1,
+        rubric_number: 1,
+        year: course.year,
+        rubric_json: rubric2JSON,
+        source: 'manual',
+      });
+    }
 
     const createdRubrics = await Rubric.insertMany(rubrics);
     console.log(`✅ ${createdRubrics.length} rúbricas creadas\n`);
 
-    // Crear usuario admin
+    // 7. Crear usuario admin
     console.log('👤 Creando usuario administrador...');
     const adminUser = new User({
       username: 'admin',
+      name: 'Administrador',
       password: 'admin123', // Se hasheará automáticamente en el pre-save hook
       role: 'admin',
-      deleted: false, // Explícitamente activo
+      deleted: false,
     });
     await adminUser.save();
     console.log('✅ Usuario admin creado (username: admin, password: admin123)\n');
 
-    // Crear usuario de prueba
+    // 8. Crear usuario de prueba
     console.log('👤 Creando usuario de prueba...');
     const testUser = new User({
       username: 'usuario',
+      name: 'Usuario de Prueba',
       password: 'usuario123',
       role: 'user',
-      deleted: false, // Explícitamente activo
+      deleted: false,
     });
     await testUser.save();
     console.log('✅ Usuario de prueba creado (username: usuario, password: usuario123)\n');
 
     // Resumen
-    console.log('='.repeat(60));
-    console.log('✅ Migración completada exitosamente!');
-    console.log('='.repeat(60));
+    console.log('='.repeat(80));
+    console.log('✅ MIGRACIÓN COMPLETADA EXITOSAMENTE CON NUEVA JERARQUÍA!');
+    console.log('='.repeat(80));
     console.log('📊 Resumen:');
     console.log(`   - Universidades: ${createdUniversities.length}`);
+    console.log(`   - Facultades: ${createdFaculties.length}`);
+    console.log(`   - Carreras: ${createdCareers.length}`);
     console.log(`   - Cursos: ${createdCourses.length}`);
+    console.log(`   - Comisiones: ${createdCommissions.length}`);
     console.log(`   - Rúbricas: ${createdRubrics.length}`);
     console.log(`   - Usuarios: 2 (admin + usuario)`);
-    console.log('='.repeat(60));
+    console.log('='.repeat(80));
+    console.log('\n📖 Estructura Jerárquica:');
+    console.log('   Universidad → Facultad → Carrera → Materia (con año) → Comisión → Rúbrica (con tipo)');
+    console.log('='.repeat(80));
     console.log('\n🔐 Credenciales de acceso:');
     console.log('   Admin:   username: admin    | password: admin123');
     console.log('   Usuario: username: usuario  | password: usuario123');
-    console.log('='.repeat(60));
+    console.log('='.repeat(80));
   } catch (error) {
     console.error('❌ Error en migración:', error);
+    console.error('Stack:', error.stack);
     process.exit(1);
   } finally {
     await disconnectDB();

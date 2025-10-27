@@ -14,8 +14,8 @@ import { authenticate, requireAdmin } from '../middleware/auth.js';
 const router = express.Router();
 
 /**
- * @route   GET /api/courses?university_id=xxx
- * @desc    Obtener todos los cursos activos (con filtro opcional por universidad)
+ * @route   GET /api/courses
+ * @desc    Obtener todos los cursos activos (con filtros opcionales: career_id, year, faculty_id, university_id)
  * @access  Public
  */
 router.get('/', getCourses);

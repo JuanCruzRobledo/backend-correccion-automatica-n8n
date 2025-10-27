@@ -1,8 +1,8 @@
 /**
  * Controlador de Rúbricas
  */
-import Rubric from '../models/Rubric.js';
-import University from '../models/University.js';
+import Rubric, { RUBRIC_TYPES } from '../models/Rubric.js';
+import Commission from '../models/Commission.js';
 import Course from '../models/Course.js';
 import { generateRubricFromPDF } from '../services/n8nService.js';
 import fs from 'fs/promises';
@@ -10,16 +10,21 @@ import path from 'path';
 
 /**
  * Listar todas las rúbricas activas - GET /api/rubrics
- * @route GET /api/rubrics?university_id=xxx&course_id=xxx
+ * @route GET /api/rubrics?commission_id=...&course_id=...&rubric_type=...&year=...&career_id=...&faculty_id=...&university_id=...
  * @access Public
  */
 export const getRubrics = async (req, res) => {
   try {
-    const { university_id, course_id } = req.query;
+    const { commission_id, course_id, rubric_type, year, career_id, faculty_id, university_id } = req.query;
 
     const filters = {};
-    if (university_id) filters.university_id = university_id;
+    if (commission_id) filters.commission_id = commission_id;
     if (course_id) filters.course_id = course_id;
+    if (rubric_type) filters.rubric_type = rubric_type;
+    if (year) filters.year = parseInt(year);
+    if (career_id) filters.career_id = career_id;
+    if (faculty_id) filters.faculty_id = faculty_id;
+    if (university_id) filters.university_id = university_id;
 
     const rubrics = await Rubric.findActive(filters);
 
@@ -77,27 +82,58 @@ export const getRubricById = async (req, res) => {
  */
 export const createRubric = async (req, res) => {
   try {
-    const { name, university_id, course_id, rubric_json } = req.body;
+    const {
+      name,
+      commission_id,
+      course_id,
+      career_id,
+      faculty_id,
+      university_id,
+      rubric_type,
+      rubric_number,
+      year,
+      rubric_json,
+    } = req.body;
 
-    // Validar datos
-    if (!name || !university_id || !course_id || !rubric_json) {
+    // Validar datos requeridos
+    if (
+      !name ||
+      !commission_id ||
+      !course_id ||
+      !career_id ||
+      !faculty_id ||
+      !university_id ||
+      !rubric_type ||
+      !rubric_number ||
+      !year ||
+      !rubric_json
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'name, university_id, course_id y rubric_json son requeridos',
+        message:
+          'Faltan campos requeridos: name, commission_id, course_id, career_id, faculty_id, university_id, rubric_type, rubric_number, year, rubric_json',
       });
     }
 
-    // Verificar que la universidad existe
-    const university = await University.findOne({ university_id });
-    if (!university) {
+    // Validar que rubric_type es válido
+    if (!Object.values(RUBRIC_TYPES).includes(rubric_type)) {
       return res.status(400).json({
         success: false,
-        message: 'La universidad especificada no existe',
+        message: `rubric_type debe ser uno de: ${Object.values(RUBRIC_TYPES).join(', ')}`,
+      });
+    }
+
+    // Verificar que la comisión existe
+    const commission = await Commission.findOne({ commission_id, deleted: false });
+    if (!commission) {
+      return res.status(400).json({
+        success: false,
+        message: 'La comisión especificada no existe',
       });
     }
 
     // Verificar que el curso existe
-    const course = await Course.findOne({ course_id });
+    const course = await Course.findOne({ course_id, deleted: false });
     if (!course) {
       return res.status(400).json({
         success: false,
@@ -105,15 +141,36 @@ export const createRubric = async (req, res) => {
       });
     }
 
+    // Verificar si ya existe una rúbrica con ese tipo y número en esa comisión
+    const existingRubric = await Rubric.findOne({
+      commission_id,
+      rubric_type,
+      rubric_number,
+      deleted: false,
+    });
+
+    if (existingRubric) {
+      return res.status(409).json({
+        success: false,
+        message: `Ya existe una rúbrica de tipo ${rubric_type} con número ${rubric_number} en esta comisión`,
+      });
+    }
+
     // Generar ID único
-    const rubric_id = Rubric.generateRubricId(university_id, course_id);
+    const rubric_id = Rubric.generateRubricId(commission_id, rubric_type, rubric_number);
 
     // Crear rúbrica
     const rubric = new Rubric({
       rubric_id,
       name,
-      university_id,
+      commission_id,
       course_id,
+      career_id,
+      faculty_id,
+      university_id,
+      rubric_type,
+      rubric_number,
+      year,
       rubric_json,
       source: 'json',
     });
@@ -134,6 +191,14 @@ export const createRubric = async (req, res) => {
         success: false,
         message: 'Error de validación',
         errors: messages,
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ya existe una rúbrica con esa combinación de comisión, tipo y número',
+        error: 'Clave duplicada',
       });
     }
 
@@ -162,27 +227,56 @@ export const createRubricFromPDF = async (req, res) => {
       });
     }
 
-    const { name, university_id, course_id } = req.body;
+    const {
+      name,
+      commission_id,
+      course_id,
+      career_id,
+      faculty_id,
+      university_id,
+      rubric_type,
+      rubric_number,
+      year,
+    } = req.body;
 
-    // Validar datos
-    if (!name || !university_id || !course_id) {
+    // Validar datos requeridos
+    if (
+      !name ||
+      !commission_id ||
+      !course_id ||
+      !career_id ||
+      !faculty_id ||
+      !university_id ||
+      !rubric_type ||
+      !rubric_number ||
+      !year
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'name, university_id y course_id son requeridos',
+        message:
+          'Faltan campos requeridos: name, commission_id, course_id, career_id, faculty_id, university_id, rubric_type, rubric_number, year',
       });
     }
 
-    // Verificar que la universidad existe
-    const university = await University.findOne({ university_id });
-    if (!university) {
+    // Validar que rubric_type es válido
+    if (!Object.values(RUBRIC_TYPES).includes(rubric_type)) {
       return res.status(400).json({
         success: false,
-        message: 'La universidad especificada no existe',
+        message: `rubric_type debe ser uno de: ${Object.values(RUBRIC_TYPES).join(', ')}`,
+      });
+    }
+
+    // Verificar que la comisión existe
+    const commission = await Commission.findOne({ commission_id, deleted: false });
+    if (!commission) {
+      return res.status(400).json({
+        success: false,
+        message: 'La comisión especificada no existe',
       });
     }
 
     // Verificar que el curso existe
-    const course = await Course.findOne({ course_id });
+    const course = await Course.findOne({ course_id, deleted: false });
     if (!course) {
       return res.status(400).json({
         success: false,
@@ -190,21 +284,45 @@ export const createRubricFromPDF = async (req, res) => {
       });
     }
 
+    // Verificar si ya existe una rúbrica con ese tipo y número en esa comisión
+    const existingRubric = await Rubric.findOne({
+      commission_id,
+      rubric_type,
+      rubric_number,
+      deleted: false,
+    });
+
+    if (existingRubric) {
+      return res.status(409).json({
+        success: false,
+        message: `Ya existe una rúbrica de tipo ${rubric_type} con número ${rubric_number} en esta comisión`,
+      });
+    }
+
     pdfPath = req.file.path;
 
-    // Llamar a n8n para generar rúbrica
+    // Obtener userId del usuario autenticado
+    const userId = req.user?.id;
+
+    // Llamar a n8n para generar rúbrica (con API key del usuario)
     console.log('📄 Generando rúbrica desde PDF con n8n...');
-    const rubric_json = await generateRubricFromPDF(pdfPath);
+    const rubric_json = await generateRubricFromPDF(pdfPath, userId);
 
     // Generar ID único
-    const rubric_id = Rubric.generateRubricId(university_id, course_id);
+    const rubric_id = Rubric.generateRubricId(commission_id, rubric_type, rubric_number);
 
     // Crear rúbrica
     const rubric = new Rubric({
       rubric_id,
       name,
-      university_id,
+      commission_id,
       course_id,
+      career_id,
+      faculty_id,
+      university_id,
+      rubric_type,
+      rubric_number,
+      year,
       rubric_json,
       source: 'pdf',
       original_file_url: req.file.filename, // Guardamos el nombre del archivo
@@ -226,6 +344,14 @@ export const createRubricFromPDF = async (req, res) => {
         success: false,
         message: 'Error de validación',
         errors: messages,
+      });
+    }
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ya existe una rúbrica con esa combinación de comisión, tipo y número',
+        error: 'Clave duplicada',
       });
     }
 
@@ -251,17 +377,18 @@ export const createRubricFromPDF = async (req, res) => {
  * Actualizar rúbrica - PUT /api/rubrics/:id
  * @route PUT /api/rubrics/:id
  * @access Private (solo admin)
+ * @note No se permite cambiar commission_id, rubric_type ni rubric_number por integridad referencial
  */
 export const updateRubric = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, rubric_json } = req.body;
+    const { name, rubric_json, course_id, career_id, faculty_id, university_id, year } = req.body;
 
     // Validar datos
-    if (!name && !rubric_json) {
+    if (!name && !rubric_json && !course_id && !career_id && !faculty_id && !university_id && !year) {
       return res.status(400).json({
         success: false,
-        message: 'Al menos name o rubric_json es requerido',
+        message: 'Al menos un campo es requerido para actualizar',
       });
     }
 
@@ -278,6 +405,11 @@ export const updateRubric = async (req, res) => {
     // Actualizar campos
     if (name) rubric.name = name;
     if (rubric_json) rubric.rubric_json = rubric_json;
+    if (course_id) rubric.course_id = course_id;
+    if (career_id) rubric.career_id = career_id;
+    if (faculty_id) rubric.faculty_id = faculty_id;
+    if (university_id) rubric.university_id = university_id;
+    if (year) rubric.year = year;
 
     await rubric.save();
 

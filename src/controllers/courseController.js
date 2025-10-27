@@ -2,18 +2,24 @@
  * Controlador de Cursos/Materias
  */
 import Course from '../models/Course.js';
-import University from '../models/University.js';
+import Career from '../models/Career.js';
 
 /**
  * Listar todos los cursos activos - GET /api/courses
- * @route GET /api/courses?university_id=xxx
+ * @route GET /api/courses?career_id=...&year=...&faculty_id=...&university_id=...
  * @access Public
  */
 export const getCourses = async (req, res) => {
   try {
-    const { university_id } = req.query;
+    const { career_id, year, faculty_id, university_id } = req.query;
 
-    const courses = await Course.findActive(university_id || null);
+    const filters = {};
+    if (career_id) filters.career_id = career_id;
+    if (year) filters.year = parseInt(year);
+    if (faculty_id) filters.faculty_id = faculty_id;
+    if (university_id) filters.university_id = university_id;
+
+    const courses = await Course.findActive(filters);
 
     res.status(200).json({
       success: true,
@@ -69,27 +75,37 @@ export const getCourseById = async (req, res) => {
  */
 export const createCourse = async (req, res) => {
   try {
-    const { course_id, name, university_id } = req.body;
+    const { course_id, name, year, career_id, faculty_id, university_id } = req.body;
 
-    // Validar datos
-    if (!course_id || !name || !university_id) {
+    // Validar datos requeridos
+    if (!course_id || !name || !year || !career_id || !faculty_id || !university_id) {
       return res.status(400).json({
         success: false,
-        message: 'course_id, name y university_id son requeridos',
+        message: 'Faltan campos requeridos: course_id, name, year, career_id, faculty_id, university_id',
       });
     }
 
-    // Verificar que la universidad existe
-    const university = await University.findOne({ university_id });
-    if (!university) {
+    // Validar formato de course_id (debe ser YYYY-nombre)
+    const courseIdRegex = /^[0-9]{4}-[a-z0-9-]+$/;
+    if (!courseIdRegex.test(course_id)) {
       return res.status(400).json({
         success: false,
-        message: 'La universidad especificada no existe',
+        message: 'El course_id debe tener el formato YYYY-nombre (ej: 2025-programacion-ii)',
+      });
+    }
+
+    // Verificar que la carrera existe
+    const career = await Career.findOne({ career_id, deleted: false });
+    if (!career) {
+      return res.status(400).json({
+        success: false,
+        message: 'La carrera especificada no existe',
       });
     }
 
     // Verificar si ya existe (incluyendo eliminados)
     const existingCourse = await Course.findOne({
+      career_id,
       course_id,
       deleted: { $in: [true, false] },
     });
@@ -98,12 +114,12 @@ export const createCourse = async (req, res) => {
       if (existingCourse.deleted) {
         return res.status(400).json({
           success: false,
-          message: 'Ya existe un curso con ese ID (eliminado). Contacte al administrador para restaurarlo.',
+          message: 'Ya existe un curso con ese ID en esta carrera (eliminado). Contacte al administrador para restaurarlo.',
         });
       }
       return res.status(400).json({
         success: false,
-        message: 'Ya existe un curso con ese ID',
+        message: 'Ya existe un curso con ese ID en esta carrera',
       });
     }
 
@@ -111,6 +127,9 @@ export const createCourse = async (req, res) => {
     const course = new Course({
       course_id,
       name,
+      year,
+      career_id,
+      faculty_id,
       university_id,
     });
 
@@ -133,6 +152,14 @@ export const createCourse = async (req, res) => {
       });
     }
 
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ya existe un curso con ese ID en esta carrera',
+        error: 'Clave duplicada',
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Error al crear curso',
@@ -149,13 +176,13 @@ export const createCourse = async (req, res) => {
 export const updateCourse = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, university_id } = req.body;
+    const { name, year, career_id, faculty_id, university_id } = req.body;
 
     // Validar datos
-    if (!name && !university_id) {
+    if (!name && !year && !career_id && !faculty_id && !university_id) {
       return res.status(400).json({
         success: false,
-        message: 'Al menos name o university_id es requerido',
+        message: 'Al menos un campo es requerido para actualizar',
       });
     }
 
@@ -169,20 +196,23 @@ export const updateCourse = async (req, res) => {
       });
     }
 
-    // Si se actualiza university_id, verificar que existe
-    if (university_id) {
-      const university = await University.findOne({ university_id });
-      if (!university) {
+    // Si se actualiza career_id, verificar que existe
+    if (career_id) {
+      const career = await Career.findOne({ career_id, deleted: false });
+      if (!career) {
         return res.status(400).json({
           success: false,
-          message: 'La universidad especificada no existe',
+          message: 'La carrera especificada no existe',
         });
       }
-      course.university_id = university_id;
+      course.career_id = career_id;
     }
 
     // Actualizar campos
     if (name) course.name = name;
+    if (year) course.year = year;
+    if (faculty_id) course.faculty_id = faculty_id;
+    if (university_id) course.university_id = university_id;
 
     await course.save();
 

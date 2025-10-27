@@ -43,8 +43,8 @@ const upload = multer({
 });
 
 /**
- * @route   GET /api/rubrics?university_id=xxx&course_id=xxx
- * @desc    Obtener todas las rúbricas activas (con filtros opcionales)
+ * @route   GET /api/rubrics
+ * @desc    Obtener todas las rúbricas activas (con filtros opcionales: commission_id, course_id, rubric_type, year, career_id, faculty_id, university_id)
  * @access  Public
  */
 router.get('/', getRubrics);
