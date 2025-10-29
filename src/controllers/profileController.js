@@ -14,8 +14,8 @@ export const getProfile = async (req, res) => {
     // req.user viene del middleware authenticate
     const userId = req.user.userId;
 
-    // Buscar usuario (sin incluir password ni gemini_api_key_encrypted)
-    const user = await User.findById(userId);
+    // Buscar usuario (incluir gemini_api_key_encrypted para validación)
+    const user = await User.findById(userId).select('+gemini_api_key_encrypted');
 
     if (!user) {
       return res.status(404).json({
@@ -37,6 +37,7 @@ export const getProfile = async (req, res) => {
       username: user.username,
       role: user.role,
       hasGeminiApiKey: user.hasValidGeminiApiKey(),
+      gemini_api_key: user.getGeminiApiKey(), // Incluir API key desencriptada
       gemini_api_key_last_4: user.getLast4Digits(),
       gemini_api_key_configured_at: user.gemini_api_key_configured_at,
       gemini_api_key_last_validated: user.gemini_api_key_last_validated,

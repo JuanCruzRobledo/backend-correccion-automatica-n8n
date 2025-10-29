@@ -11,6 +11,7 @@ import {
   restoreCommission,
   getAllCommissions,
   getCommissionsByYear,
+  getUniqueCommissions,
 } from '../controllers/commissionController.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 
@@ -29,6 +30,13 @@ router.get('/all', authenticate, requireAdmin, getAllCommissions);
  * @access  Public
  */
 router.get('/by-year/:year', getCommissionsByYear);
+
+/**
+ * @route   GET /api/commissions/unique
+ * @desc    Obtener comisiones únicas (sin duplicados por carrera)
+ * @access  Public
+ */
+router.get('/unique', getUniqueCommissions);
 
 /**
  * @route   GET /api/commissions

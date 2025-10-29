@@ -28,7 +28,7 @@ export async function validateGeminiApiKey(apiKey) {
   try {
     // Inicializar cliente de Gemini con la API key
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Hacer un request de prueba simple
     const prompt = 'Di "OK" si recibes este mensaje.';

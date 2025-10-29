@@ -7,6 +7,8 @@ import Commission from '../models/Commission.js';
 /**
  * Obtener todas las comisiones (con filtros opcionales)
  * @route GET /api/commissions?course_id=...&year=...&career_id=...
+ * IMPORTANTE: Si se proporciona course_id, es altamente recomendable incluir career_id
+ * para evitar duplicados entre carreras que comparten el mismo curso.
  */
 export const getCommissions = async (req, res) => {
   try {
@@ -18,6 +20,11 @@ export const getCommissions = async (req, res) => {
     if (career_id) filters.career_id = career_id;
     if (faculty_id) filters.faculty_id = faculty_id;
     if (university_id) filters.university_id = university_id;
+
+    // Advertencia si se filtra por course_id sin career_id
+    if (course_id && !career_id) {
+      console.warn(`⚠️  GET /api/commissions: Buscando comisiones por course_id sin career_id. Esto puede devolver duplicados de diferentes carreras.`);
+    }
 
     const commissions = await Commission.findActive(filters);
 
@@ -331,4 +338,59 @@ export const getCommissionsByYear = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+/**
+ * Obtener comisiones únicas (sin duplicados por carrera)
+ * @route GET /api/commissions/unique?course_id=...&year=...
+ * Este endpoint devuelve solo UNA comisión por cada commission_id único,
+ * útil cuando no se tiene el career_id pero se quiere evitar duplicados.
+ */
+export const getUniqueCommissions = async (req, res) => {
+  try {
+    const { course_id, year } = req.query;
+
+    const filters = { deleted: false };
+    if (course_id) filters.course_id = course_id;
+    if (year) filters.year = parseInt(year);
+
+    // Usar agregación para obtener solo una comisión por commission_id
+    const uniqueCommissions = await Commission.aggregate([
+      { $match: filters },
+      {
+        $group: {
+          _id: '$commission_id',
+          // Tomar el primer documento de cada grupo
+          doc: { $first: '$$ROOT' }
+        }
+      },
+      { $replaceRoot: { newRoot: '$doc' } },
+      { $sort: { name: 1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: uniqueCommissions.length,
+      data: uniqueCommissions,
+      note: 'Comisiones únicas (una por commission_id). Para obtener todas las comisiones de una carrera específica, use el parámetro career_id.'
+    });
+  } catch (error) {
+    console.error('Error al obtener comisiones únicas:', error);
+    res.status(500).json({
+      message: 'Error al obtener comisiones únicas',
+      error: error.message,
+    });
+  }
+};
+
+export default {
+  getCommissions,
+  getCommissionById,
+  createCommission,
+  updateCommission,
+  deleteCommission,
+  restoreCommission,
+  getAllCommissions,
+  getCommissionsByYear,
+  getUniqueCommissions,
 };
