@@ -3,6 +3,7 @@
  * Maneja todas las operaciones CRUD de comisiones
  */
 import Commission from '../models/Commission.js';
+import * as driveService from '../services/driveService.js';
 
 /**
  * Obtener todas las comisiones (con filtros opcionales)
@@ -128,6 +129,12 @@ export const createCommission = async (req, res) => {
       professor_name,
       professor_email,
       year,
+    });
+
+    // Crear carpeta en Google Drive (no bloqueante)
+    // Esta función crea también las subcarpetas "Entregas" y "Rubricas"
+    driveService.createCommissionFolder(commission_id, course_id, career_id, faculty_id, university_id).catch((err) => {
+      console.error('Error al crear carpeta de comisión en Drive:', err);
     });
 
     res.status(201).json({

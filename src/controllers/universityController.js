@@ -2,6 +2,7 @@
  * Controlador de Universidades
  */
 import University from '../models/University.js';
+import * as driveService from '../services/driveService.js';
 
 /**
  * Listar todas las universidades activas - GET /api/universities
@@ -102,6 +103,11 @@ export const createUniversity = async (req, res) => {
     });
 
     await university.save();
+
+    // Crear carpeta en Google Drive (no bloqueante)
+    driveService.createUniversityFolder(university_id).catch((err) => {
+      console.error('Error al crear carpeta de universidad en Drive:', err);
+    });
 
     res.status(201).json({
       success: true,

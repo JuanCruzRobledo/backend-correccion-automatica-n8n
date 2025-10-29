@@ -3,6 +3,7 @@
  */
 import Course from '../models/Course.js';
 import Career from '../models/Career.js';
+import * as driveService from '../services/driveService.js';
 
 /**
  * Listar todos los cursos activos - GET /api/courses
@@ -134,6 +135,11 @@ export const createCourse = async (req, res) => {
     });
 
     await course.save();
+
+    // Crear carpeta en Google Drive (no bloqueante)
+    driveService.createCourseFolder(course_id, career_id, faculty_id, university_id).catch((err) => {
+      console.error('Error al crear carpeta de curso en Drive:', err);
+    });
 
     res.status(201).json({
       success: true,

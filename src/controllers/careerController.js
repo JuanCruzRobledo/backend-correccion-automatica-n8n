@@ -3,6 +3,7 @@
  * Maneja todas las operaciones CRUD de carreras
  */
 import Career from '../models/Career.js';
+import * as driveService from '../services/driveService.js';
 
 /**
  * Obtener todas las carreras (con filtros opcionales)
@@ -106,6 +107,11 @@ export const createCareer = async (req, res) => {
       name,
       faculty_id,
       university_id,
+    });
+
+    // Crear carpeta en Google Drive (no bloqueante)
+    driveService.createCareerFolder(career_id, faculty_id, university_id).catch((err) => {
+      console.error('Error al crear carpeta de carrera en Drive:', err);
     });
 
     res.status(201).json({
