@@ -17,9 +17,9 @@ router.post('/login', login);
 /**
  * @route   POST /api/auth/register
  * @desc    Registrar nuevo usuario
- * @access  Private (solo admin)
+ * @access  Public
  */
-router.post('/register', authenticate, requireAdmin, register);
+router.post('/register', register);
 
 /**
  * @route   GET /api/auth/verify

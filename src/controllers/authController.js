@@ -120,11 +120,11 @@ export const register = async (req, res) => {
       });
     }
 
-    // Crear usuario
+    // Crear usuario (siempre con rol 'user' para registro público)
     const user = new User({
       username,
       password,
-      role: role || 'user',
+      role: 'user',
     });
 
     await user.save();
