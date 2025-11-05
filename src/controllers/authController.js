@@ -91,13 +91,13 @@ export const login = async (req, res) => {
  */
 export const register = async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, name, password, role } = req.body;
 
     // Validar datos
-    if (!username || !password) {
+    if (!username || !password || !name) {
       return res.status(400).json({
         success: false,
-        message: 'Username y password son requeridos',
+        message: 'Username, nombre y password son requeridos',
       });
     }
 
@@ -123,6 +123,7 @@ export const register = async (req, res) => {
     // Crear usuario (siempre con rol 'user' para registro público)
     const user = new User({
       username,
+      name,
       password,
       role: 'user',
     });

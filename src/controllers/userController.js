@@ -74,13 +74,13 @@ export const getUserById = async (req, res) => {
  */
 export const createUser = async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, name, password, role } = req.body;
 
     // Validar datos
-    if (!username || !password) {
+    if (!username || !password || !name) {
       return res.status(400).json({
         success: false,
-        message: 'username y password son requeridos',
+        message: 'username, nombre y password son requeridos',
       });
     }
 
@@ -106,6 +106,7 @@ export const createUser = async (req, res) => {
     // Crear usuario
     const user = new User({
       username,
+      name,
       password,
       role: role || 'user',
     });
@@ -145,7 +146,7 @@ export const createUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password, role } = req.body;
+    const { username, name, password, role } = req.body;
 
     // Buscar usuario
     const user = await User.findById(id);
@@ -185,6 +186,11 @@ export const updateUser = async (req, res) => {
         }
       }
       user.username = username;
+    }
+
+    // Actualizar nombre si se proporciona
+    if (name) {
+      user.name = name;
     }
 
     // Actualizar password si se proporciona
