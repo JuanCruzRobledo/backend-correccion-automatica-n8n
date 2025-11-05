@@ -19,6 +19,7 @@ import courseRoutes from './routes/courseRoutes.js';
 import commissionRoutes from './routes/commissionRoutes.js';
 import rubricRoutes from './routes/rubricRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import consolidatorRoutes from './routes/consolidatorRoutes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -47,6 +48,7 @@ if (process.env.NODE_ENV === 'development') {
 app.use('/api/auth', authRoutes);
 app.use('/api', profileRoutes); // Rutas de perfil (/api/profile)
 app.use('/api', gradingRoutes); // Rutas de corrección (/api/grade)
+app.use('/api', consolidatorRoutes); // Rutas de consolidación (/api/consolidate) - PÚBLICO
 app.use('/api/universities', universityRoutes);
 app.use('/api/faculties', facultyRoutes);
 app.use('/api/careers', careerRoutes);
@@ -69,10 +71,11 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'API de Corrección Automática',
-    version: '2.1.0',
+    version: '2.2.0',
     endpoints: {
       auth: '/api/auth',
       profile: '/api/profile',
+      consolidate: '/api/consolidate (público)',
       universities: '/api/universities',
       faculties: '/api/faculties',
       careers: '/api/careers',
