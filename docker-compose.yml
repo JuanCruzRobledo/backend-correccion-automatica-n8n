@@ -4,10 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: correcion-automatica-backend
     restart: unless-stopped
-    ports:
-      - "5000:5000"
     labels:
       # Easypanel labels para habilitar HTTPS
       - "traefik.enable=true"
