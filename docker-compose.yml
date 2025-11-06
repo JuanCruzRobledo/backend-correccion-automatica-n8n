@@ -8,6 +8,14 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
+    labels:
+      # Easypanel labels para habilitar HTTPS
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=5000"
     environment:
       # MongoDB - Usar servidor MongoDB externo
       MONGODB_URI: ${MONGODB_URI:-mongodb://localhost:27017/correcion-automatica}
