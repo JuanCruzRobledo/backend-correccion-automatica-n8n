@@ -12,13 +12,13 @@ services:
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.backend.loadbalancer.server.port=5000"
+      - "traefik.http.services.backend.loadbalancer.server.port=80"
     environment:
       # MongoDB - Usar servidor MongoDB externo
       MONGODB_URI: ${MONGODB_URI:-mongodb://localhost:27017/correcion-automatica}
       
       # Server
-      PORT: 5000
+      PORT: 80
       NODE_ENV: production
       
       # JWT - CAMBIAR EN PRODUCCIÓN
@@ -45,7 +45,7 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-tu-encryption-key-de-64-caracteres-hex-cambiar-en-produccion}
     
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:443/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:80/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
       timeout: 3s
       retries: 3
