@@ -1,15 +1,10 @@
-version: '3.8'
-
 services:
   # Servicio del Backend API
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: correcion-automatica-backend
     restart: unless-stopped
-    ports:
-      - "5000:5000"
     environment:
       # MongoDB - Usar servidor MongoDB externo
       MONGODB_URI: ${MONGODB_URI:-mongodb://localhost:27017/correcion-automatica}
