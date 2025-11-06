@@ -157,7 +157,7 @@ export const createRubric = async (req, res) => {
     }
 
     // Generar ID único
-    const rubric_id = Rubric.generateRubricId(commission_id, rubric_type, rubric_number);
+    const rubric_id = Rubric.generateRubricId(commission_id, rubric_type, name, rubric_number);
 
     // Crear rúbrica
     const rubric = new Rubric({
@@ -176,6 +176,13 @@ export const createRubric = async (req, res) => {
     });
 
     await rubric.save();
+
+    // Crear carpeta de submission en Google Drive (no bloqueante)
+    // Usamos el rubric_id como submit_id para crear la carpeta
+    const { createSubmissionFolder } = await import('../services/driveService.js');
+    createSubmissionFolder(rubric_id, commission_id, course_id, career_id, faculty_id, university_id).catch((err) => {
+      console.error('Error al crear carpeta de submission en Drive:', err);
+    });
 
     res.status(201).json({
       success: true,
@@ -309,7 +316,7 @@ export const createRubricFromPDF = async (req, res) => {
     const rubric_json = await generateRubricFromPDF(pdfPath, userId);
 
     // Generar ID único
-    const rubric_id = Rubric.generateRubricId(commission_id, rubric_type, rubric_number);
+    const rubric_id = Rubric.generateRubricId(commission_id, rubric_type, name, rubric_number);
 
     // Crear rúbrica
     const rubric = new Rubric({
@@ -329,6 +336,13 @@ export const createRubricFromPDF = async (req, res) => {
     });
 
     await rubric.save();
+
+    // Crear carpeta de submission en Google Drive (no bloqueante)
+    // Usamos el rubric_id como submit_id para crear la carpeta
+    const { createSubmissionFolder } = await import('../services/driveService.js');
+    createSubmissionFolder(rubric_id, commission_id, course_id, career_id, faculty_id, university_id).catch((err) => {
+      console.error('Error al crear carpeta de submission en Drive:', err);
+    });
 
     res.status(201).json({
       success: true,

@@ -165,13 +165,21 @@ rubricSchema.statics.findByType = function (commissionId, rubricType) {
  * Método estático para generar un ID único de rúbrica
  * @param {String} commissionId
  * @param {String} rubricType
+ * @param {String} name - Nombre de la rúbrica
  * @param {Number} rubricNumber
  * @returns {String}
  */
-rubricSchema.statics.generateRubricId = function (commissionId, rubricType, rubricNumber) {
+rubricSchema.statics.generateRubricId = function (commissionId, rubricType, name, rubricNumber) {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 6);
-  return `${commissionId}-${rubricType}-${rubricNumber}-${timestamp}-${random}`;
+  // Normalizar el nombre: convertir a minúsculas, reemplazar espacios y caracteres especiales por guiones
+  const normalizedName = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+    .replace(/[^a-z0-9]+/g, '-') // Reemplazar caracteres especiales y espacios por guiones
+    .replace(/^-+|-+$/g, ''); // Eliminar guiones al inicio y final
+  return `${commissionId}-${rubricType}-${normalizedName}-${rubricNumber}-${timestamp}-${random}`;
 };
 
 /**

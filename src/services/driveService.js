@@ -201,3 +201,46 @@ export const createCommissionFolder = async (commission_id, course_id, career_id
     };
   }
 };
+
+/**
+ * Crear carpeta de Submission/Entrega en Google Drive
+ * Se llama cuando se crea una rúbrica para preparar la carpeta de entregas
+ * @param {String} submit_id - ID del submission (normalmente el rubric_id)
+ * @param {String} commission_id - ID de la comisión
+ * @param {String} course_id - ID del curso
+ * @param {String} career_id - ID de la carrera
+ * @param {String} faculty_id - ID de la facultad
+ * @param {String} university_id - ID de la universidad
+ * @returns {Promise<Object>} Respuesta del webhook
+ */
+export const createSubmissionFolder = async (submit_id, commission_id, course_id, career_id, faculty_id, university_id) => {
+  try {
+    const webhookUrl = process.env.N8N_CREATE_SUBMISSION_FOLDER_WEBHOOK;
+
+    if (!webhookUrl) {
+      console.warn('⚠️  N8N_CREATE_SUBMISSION_FOLDER_WEBHOOK no está configurada. Saltando creación de carpeta.');
+      return { success: false, message: 'Webhook no configurado' };
+    }
+
+    console.log(`📁 Creando carpeta de submission: ${submit_id} (en ${commission_id}/${course_id}/${career_id}/${faculty_id}/${university_id})`);
+
+    const response = await axios.post(
+      webhookUrl,
+      { submit_id, commission_id, course_id, career_id, faculty_id, university_id },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000, // 30 segundos
+      }
+    );
+
+    console.log(`✅ Carpeta de submission creada: ${submit_id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`❌ Error al crear carpeta de submission "${submit_id}":`, error.message);
+
+    return {
+      success: false,
+      message: error.response?.data?.message || error.message,
+    };
+  }
+};
