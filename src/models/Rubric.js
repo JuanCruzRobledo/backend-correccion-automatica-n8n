@@ -92,6 +92,12 @@ const rubricSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    drive_folder_id: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
     deleted: {
       type: Boolean,
       default: false,

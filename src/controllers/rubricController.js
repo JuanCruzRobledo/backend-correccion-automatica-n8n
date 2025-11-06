@@ -177,12 +177,22 @@ export const createRubric = async (req, res) => {
 
     await rubric.save();
 
-    // Crear carpeta de submission en Google Drive (no bloqueante)
+    // Crear carpeta de submission en Google Drive y guardar el folder_id
     // Usamos el rubric_id como submit_id para crear la carpeta
     const { createSubmissionFolder } = await import('../services/driveService.js');
-    createSubmissionFolder(rubric_id, commission_id, course_id, career_id, faculty_id, university_id).catch((err) => {
-      console.error('Error al crear carpeta de submission en Drive:', err);
-    });
+    try {
+      const driveResponse = await createSubmissionFolder(rubric_id, commission_id, course_id, career_id, faculty_id, university_id);
+
+      // Si la carpeta se creó exitosamente, guardar el folder_id
+      if (driveResponse.success && driveResponse.folder_id) {
+        rubric.drive_folder_id = driveResponse.folder_id;
+        await rubric.save();
+        console.log(`✅ folder_id guardado en rúbrica: ${driveResponse.folder_id}`);
+      }
+    } catch (err) {
+      console.error('⚠️ Error al crear carpeta de submission en Drive:', err);
+      // No fallar la creación de la rúbrica si falla Drive
+    }
 
     res.status(201).json({
       success: true,
@@ -337,12 +347,22 @@ export const createRubricFromPDF = async (req, res) => {
 
     await rubric.save();
 
-    // Crear carpeta de submission en Google Drive (no bloqueante)
+    // Crear carpeta de submission en Google Drive y guardar el folder_id
     // Usamos el rubric_id como submit_id para crear la carpeta
     const { createSubmissionFolder } = await import('../services/driveService.js');
-    createSubmissionFolder(rubric_id, commission_id, course_id, career_id, faculty_id, university_id).catch((err) => {
-      console.error('Error al crear carpeta de submission en Drive:', err);
-    });
+    try {
+      const driveResponse = await createSubmissionFolder(rubric_id, commission_id, course_id, career_id, faculty_id, university_id);
+
+      // Si la carpeta se creó exitosamente, guardar el folder_id
+      if (driveResponse.success && driveResponse.folder_id) {
+        rubric.drive_folder_id = driveResponse.folder_id;
+        await rubric.save();
+        console.log(`✅ folder_id guardado en rúbrica: ${driveResponse.folder_id}`);
+      }
+    } catch (err) {
+      console.error('⚠️ Error al crear carpeta de submission en Drive:', err);
+      // No fallar la creación de la rúbrica si falla Drive
+    }
 
     res.status(201).json({
       success: true,
