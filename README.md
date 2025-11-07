@@ -1,6 +1,6 @@
 # 🚀 Backend - Sistema de Corrección Automática
 
-Backend API REST para el sistema de corrección automática con gestión de universidades, cursos y rúbricas.
+Backend API REST para el sistema de corrección automática con gestión completa de universidades, cursos, rúbricas y usuarios.
 
 ---
 
