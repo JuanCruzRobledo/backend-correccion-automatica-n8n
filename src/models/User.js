@@ -29,9 +29,16 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'user'],
+      enum: ['super-admin', 'university-admin', 'professor', 'user'],
       default: 'user',
       required: true,
+    },
+    university_id: {
+      type: String,
+      default: null,
+      index: true,
+      trim: true,
+      lowercase: true,
     },
     // Campos para API Key de Gemini
     gemini_api_key_encrypted: {
@@ -68,11 +75,23 @@ const userSchema = new mongoose.Schema(
 // Índices
 userSchema.index({ deleted: 1 });
 userSchema.index({ gemini_api_key_is_valid: 1 });
+userSchema.index({ university_id: 1, deleted: 1 });
+userSchema.index({ role: 1, university_id: 1 });
 
 /**
- * Hook pre-save para hashear la contraseña
+ * Hook pre-save para validar university_id y hashear la contraseña
  */
 userSchema.pre('save', async function (next) {
+  // Validar que university_id sea requerido para todos excepto super-admin
+  if (this.role !== 'super-admin' && !this.university_id) {
+    return next(new Error('El campo university_id es requerido para roles que no sean super-admin'));
+  }
+
+  // super-admin NO debe tener university_id
+  if (this.role === 'super-admin' && this.university_id) {
+    this.university_id = null;
+  }
+
   // Solo hashear si la contraseña fue modificada (o es nueva)
   if (!this.isModified('password')) {
     return next();
@@ -111,6 +130,7 @@ userSchema.methods.toPublicJSON = function () {
     username: this.username,
     name: this.name,
     role: this.role,
+    university_id: this.university_id,
     deleted: this.deleted || false, // Incluir campo deleted
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
@@ -255,6 +275,28 @@ userSchema.methods.updateGeminiApiKeyValidation = async function (isValid) {
   this.gemini_api_key_last_validated = new Date();
   this.gemini_api_key_is_valid = isValid;
   await this.save();
+};
+
+/**
+ * Método estático para encontrar usuarios por universidad
+ * @param {String} university_id
+ * @returns {Promise<Array>}
+ */
+userSchema.statics.findByUniversity = function (university_id) {
+  return this.find({ university_id, deleted: false });
+};
+
+/**
+ * Método estático para encontrar profesores por universidad
+ * @param {String} university_id
+ * @returns {Promise<Array>}
+ */
+userSchema.statics.findProfessorsByUniversity = function (university_id) {
+  return this.find({
+    university_id,
+    role: 'professor',
+    deleted: false
+  });
 };
 
 const User = mongoose.model('User', userSchema);

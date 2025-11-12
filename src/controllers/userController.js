@@ -5,17 +5,33 @@ import User from '../models/User.js';
 
 /**
  * Listar usuarios - GET /api/users
- * @route GET /api/users?includeDeleted=true
+ * @route GET /api/users?includeDeleted=true&role=professor&university_id=utn
  * @access Private (solo admin)
  * @query includeDeleted - Si es 'true', incluye usuarios eliminados
+ * @query role - Filtrar por rol (ej: 'professor', 'user', etc.)
+ * @query university_id - Filtrar por universidad
  */
 export const getUsers = async (req, res) => {
   try {
     const includeDeleted = req.query.includeDeleted === 'true';
+    const { role, university_id } = req.query;
 
-    const users = includeDeleted
-      ? await User.find({})
-      : await User.findActive();
+    // Construir filtros
+    const filters = {};
+
+    if (!includeDeleted) {
+      filters.deleted = false;
+    }
+
+    if (role) {
+      filters.role = role;
+    }
+
+    if (university_id) {
+      filters.university_id = university_id;
+    }
+
+    const users = await User.find(filters);
 
     // Mapear para eliminar passwords (aunque ya está en select: false)
     const usersPublic = users.map(user => user.toPublicJSON());
@@ -74,13 +90,22 @@ export const getUserById = async (req, res) => {
  */
 export const createUser = async (req, res) => {
   try {
-    const { username, name, password, role } = req.body;
+    const { username, name, password, role, university_id } = req.body;
 
     // Validar datos
     if (!username || !password || !name) {
       return res.status(400).json({
         success: false,
         message: 'username, nombre y password son requeridos',
+      });
+    }
+
+    // Validar university_id para roles que no sean super-admin
+    const userRole = role || 'user';
+    if (userRole !== 'super-admin' && !university_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'El campo university_id es requerido para roles que no sean super-admin',
       });
     }
 
@@ -108,7 +133,8 @@ export const createUser = async (req, res) => {
       username,
       name,
       password,
-      role: role || 'user',
+      role: userRole,
+      university_id: userRole === 'super-admin' ? null : university_id,
     });
 
     await user.save();
@@ -146,7 +172,7 @@ export const createUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, name, password, role } = req.body;
+    const { username, name, password, role, university_id } = req.body;
 
     // Buscar usuario
     const user = await User.findById(id);
@@ -208,6 +234,22 @@ export const updateUser = async (req, res) => {
         });
       }
       user.role = role;
+
+      // Si cambia a super-admin, limpiar university_id
+      if (role === 'super-admin') {
+        user.university_id = null;
+      }
+    }
+
+    // Actualizar university_id si se proporciona
+    if (university_id !== undefined) {
+      // Validar que no sea super-admin
+      const finalRole = role || user.role;
+      if (finalRole === 'super-admin') {
+        user.university_id = null;
+      } else {
+        user.university_id = university_id;
+      }
     }
 
     await user.save();

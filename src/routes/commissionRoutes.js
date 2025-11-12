@@ -12,8 +12,12 @@ import {
   getAllCommissions,
   getCommissionsByYear,
   getUniqueCommissions,
+  assignProfessor,
+  removeProfessor,
+  getMyCommissions,
 } from '../controllers/commissionController.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
+import { requireRoles } from '../middleware/multiTenant.js';
 
 const router = express.Router();
 
@@ -23,6 +27,13 @@ const router = express.Router();
  * @access  Private (solo admin)
  */
 router.get('/all', authenticate, requireAdmin, getAllCommissions);
+
+/**
+ * @route   GET /api/commissions/my-commissions
+ * @desc    Obtener comisiones asignadas al profesor autenticado
+ * @access  Private (professor)
+ */
+router.get('/my-commissions', authenticate, getMyCommissions);
 
 /**
  * @route   GET /api/commissions/by-year/:year
@@ -79,5 +90,30 @@ router.put('/:id/restore', authenticate, requireAdmin, restoreCommission);
  * @access  Private (solo admin)
  */
 router.delete('/:id', authenticate, requireAdmin, deleteCommission);
+
+/**
+ * @route   POST /api/commissions/:id/assign-professor
+ * @desc    Asignar profesor a comisión
+ * @access  Private (university-admin, super-admin)
+ * @body    { professor_id }
+ */
+router.post(
+  '/:id/assign-professor',
+  authenticate,
+  requireRoles('super-admin', 'university-admin'),
+  assignProfessor
+);
+
+/**
+ * @route   DELETE /api/commissions/:id/professors/:professorId
+ * @desc    Remover profesor de comisión
+ * @access  Private (university-admin, super-admin)
+ */
+router.delete(
+  '/:id/professors/:professorId',
+  authenticate,
+  requireRoles('super-admin', 'university-admin'),
+  removeProfessor
+);
 
 export default router;

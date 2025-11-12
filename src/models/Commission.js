@@ -39,18 +39,11 @@ const commissionSchema = new mongoose.Schema(
       required: [true, 'El ID de la universidad es requerido'],
       index: true,
     },
-    professor_name: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-    professor_email: {
-      type: String,
-      trim: true,
-      lowercase: true,
-      match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, 'Email inválido'],
-      default: null,
-    },
+    professors: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: []
+    }],
     year: {
       type: Number,
       required: [true, 'El año es requerido'],
@@ -74,6 +67,7 @@ commissionSchema.index({ commission_id: 1, deleted: 1 });
 commissionSchema.index({ course_id: 1, deleted: 1 });
 commissionSchema.index({ course_id: 1, year: 1, deleted: 1 });
 commissionSchema.index({ year: 1, deleted: 1 });
+commissionSchema.index({ professors: 1 });
 
 // Evitar duplicados: curso + comisión debe ser único
 commissionSchema.index({ course_id: 1, commission_id: 1 }, { unique: true });
@@ -122,6 +116,49 @@ commissionSchema.methods.softDelete = function () {
 commissionSchema.methods.restore = function () {
   this.deleted = false;
   return this.save();
+};
+
+/**
+ * Método de instancia para asignar profesor a la comisión
+ * @param {String|ObjectId} professorId - ID del profesor a asignar
+ * @returns {Promise<Document>}
+ */
+commissionSchema.methods.assignProfessor = async function (professorId) {
+  // Verificar que el profesor no esté ya asignado
+  const alreadyAssigned = this.professors.some(
+    (id) => id.toString() === professorId.toString()
+  );
+
+  if (alreadyAssigned) {
+    throw new Error('El profesor ya está asignado a esta comisión');
+  }
+
+  this.professors.push(professorId);
+  return await this.save();
+};
+
+/**
+ * Método de instancia para remover profesor de la comisión
+ * @param {String|ObjectId} professorId - ID del profesor a remover
+ * @returns {Promise<Document>}
+ */
+commissionSchema.methods.removeProfessor = async function (professorId) {
+  this.professors = this.professors.filter(
+    (id) => id.toString() !== professorId.toString()
+  );
+  return await this.save();
+};
+
+/**
+ * Método estático para encontrar comisiones por profesor
+ * @param {String|ObjectId} professorId - ID del profesor
+ * @returns {Promise<Array>}
+ */
+commissionSchema.statics.findByProfessor = function (professorId) {
+  return this.find({
+    professors: professorId,
+    deleted: false
+  }).sort({ year: -1, name: 1 });
 };
 
 // Evitar que documentos eliminados aparezcan en consultas por defecto

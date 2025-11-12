@@ -3,6 +3,7 @@
  * Maneja todas las operaciones CRUD de comisiones
  */
 import Commission from '../models/Commission.js';
+import User from '../models/User.js';
 import * as driveService from '../services/driveService.js';
 
 /**
@@ -390,6 +391,182 @@ export const getUniqueCommissions = async (req, res) => {
   }
 };
 
+/**
+ * Asignar profesor a comisión
+ * @route POST /api/commissions/:id/assign-professor
+ * @access University-admin, Super-admin
+ */
+export const assignProfessor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { professor_id } = req.body;
+
+    if (!professor_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Se requiere professor_id',
+      });
+    }
+
+    // Buscar comisión
+    const commission = await Commission.findById(id);
+
+    if (!commission || commission.deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comisión no encontrada',
+      });
+    }
+
+    // Validar multi-tenant: solo university-admin de la misma universidad o super-admin
+    if (req.user.role === 'university-admin') {
+      if (commission.university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tiene acceso a esta comisión',
+        });
+      }
+    }
+
+    // Buscar profesor
+    const professor = await User.findById(professor_id);
+
+    if (!professor || professor.deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profesor no encontrado',
+      });
+    }
+
+    // Validar que sea profesor
+    if (professor.role !== 'professor') {
+      return res.status(400).json({
+        success: false,
+        message: 'El usuario debe tener rol de profesor',
+      });
+    }
+
+    // Validar que el profesor sea de la misma universidad
+    if (professor.university_id !== commission.university_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'El profesor debe pertenecer a la misma universidad que la comisión',
+      });
+    }
+
+    // Asignar profesor usando el método del modelo
+    await commission.assignProfessor(professor_id);
+
+    // Obtener comisión actualizada con populate
+    const updatedCommission = await Commission.findById(id).populate('professors', 'name username email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Profesor asignado exitosamente',
+      data: updatedCommission,
+    });
+  } catch (error) {
+    console.error('Error al asignar profesor:', error);
+
+    // Manejar error de duplicado
+    if (error.message.includes('ya está asignado')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error al asignar profesor',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Remover profesor de comisión
+ * @route DELETE /api/commissions/:id/professors/:professorId
+ * @access University-admin, Super-admin
+ */
+export const removeProfessor = async (req, res) => {
+  try {
+    const { id, professorId } = req.params;
+
+    // Buscar comisión
+    const commission = await Commission.findById(id);
+
+    if (!commission || commission.deleted) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comisión no encontrada',
+      });
+    }
+
+    // Validar multi-tenant
+    if (req.user.role === 'university-admin') {
+      if (commission.university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tiene acceso a esta comisión',
+        });
+      }
+    }
+
+    // Remover profesor usando el método del modelo
+    await commission.removeProfessor(professorId);
+
+    // Obtener comisión actualizada
+    const updatedCommission = await Commission.findById(id).populate('professors', 'name username email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Profesor removido exitosamente',
+      data: updatedCommission,
+    });
+  } catch (error) {
+    console.error('Error al remover profesor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al remover profesor',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Obtener comisiones asignadas al profesor autenticado
+ * @route GET /api/commissions/my-commissions
+ * @access Professor
+ */
+export const getMyCommissions = async (req, res) => {
+  try {
+    // Verificar que el usuario sea profesor
+    if (req.user.role !== 'professor') {
+      return res.status(403).json({
+        success: false,
+        message: 'Solo los profesores pueden acceder a esta ruta',
+      });
+    }
+
+    // Buscar comisiones donde el profesor está asignado
+    const commissions = await Commission.findByProfessor(req.user.userId);
+
+    res.status(200).json({
+      success: true,
+      count: commissions.length,
+      data: commissions,
+    });
+  } catch (error) {
+    console.error('Error al obtener comisiones del profesor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener comisiones del profesor',
+      error: error.message,
+    });
+  }
+};
+
 export default {
   getCommissions,
   getCommissionById,
@@ -400,4 +577,7 @@ export default {
   getAllCommissions,
   getCommissionsByYear,
   getUniqueCommissions,
+  assignProfessor,
+  removeProfessor,
+  getMyCommissions,
 };

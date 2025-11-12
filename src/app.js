@@ -20,6 +20,7 @@ import commissionRoutes from './routes/commissionRoutes.js';
 import rubricRoutes from './routes/rubricRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import consolidatorRoutes from './routes/consolidatorRoutes.js';
+import submissionRoutes from './routes/submissionRoutes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -56,6 +57,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/rubrics', rubricRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/submissions', submissionRoutes);
 
 // Ruta de health check
 app.get('/health', (req, res) => {
@@ -71,7 +73,7 @@ app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'API de Corrección Automática',
-    version: '2.2.0',
+    version: '2.3.0',
     endpoints: {
       auth: '/api/auth',
       profile: '/api/profile',
@@ -83,6 +85,7 @@ app.get('/', (req, res) => {
       commissions: '/api/commissions',
       rubrics: '/api/rubrics',
       users: '/api/users',
+      submissions: '/api/submissions',
       health: '/health',
     },
   });
@@ -147,6 +150,7 @@ const startServer = async () => {
       console.log(`   - GET  http://localhost:${PORT}/api/commissions`);
       console.log(`   - GET  http://localhost:${PORT}/api/rubrics`);
       console.log(`   - GET  http://localhost:${PORT}/api/users`);
+      console.log(`   - GET  http://localhost:${PORT}/api/submissions`);
       console.log('='.repeat(60));
       console.log('');
     });
