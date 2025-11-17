@@ -12,13 +12,36 @@ import * as driveService from '../services/driveService.js';
 export const getCareers = async (req, res) => {
   try {
     const { faculty_id, university_id } = req.query;
+    const userRole = req.user.role;
 
     let query = { deleted: false };
-    if (faculty_id) {
-      query.faculty_id = faculty_id;
-    }
-    if (university_id) {
-      query.university_id = university_id;
+
+    // Aplicar filtros según rol del usuario
+    if (userRole === 'super-admin') {
+      // Super-admin ve todas las carreras
+      if (faculty_id) query.faculty_id = faculty_id;
+      if (university_id) query.university_id = university_id;
+    } else if (userRole === 'university-admin') {
+      // University-admin solo ve carreras de su universidad
+      query.university_id = req.user.university_id;
+      if (faculty_id) query.faculty_id = faculty_id;
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo ve carreras de SU facultad
+      query.university_id = req.user.university_id;
+      query.faculty_id = req.user.faculty_id;
+    } else if (userRole === 'professor-admin') {
+      // Professor-admin ve carreras relacionadas a sus cursos
+      // Por ahora filtramos por universidad
+      query.university_id = req.user.university_id;
+    } else if (userRole === 'professor') {
+      // Professor ve carreras de sus comisiones
+      query.university_id = req.user.university_id;
+    } else {
+      // User no tiene acceso
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para ver carreras',
+      });
     }
 
     const careers = await Career.find(query).sort({ name: 1 });
@@ -80,11 +103,39 @@ export const getCareerById = async (req, res) => {
 export const createCareer = async (req, res) => {
   try {
     const { career_id, name, faculty_id, university_id } = req.body;
+    const userRole = req.user.role;
 
     // Validar campos requeridos
     if (!career_id || !name || !faculty_id || !university_id) {
       return res.status(400).json({
         message: 'Faltan campos requeridos: career_id, name, faculty_id, university_id',
+      });
+    }
+
+    // Validar permisos según rol
+    if (userRole === 'super-admin') {
+      // Super-admin puede crear en cualquier facultad
+    } else if (userRole === 'university-admin') {
+      // University-admin solo puede crear en facultades de su universidad
+      if (university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear carreras en su universidad',
+        });
+      }
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo puede crear en SU facultad
+      if (university_id !== req.user.university_id || faculty_id !== req.user.faculty_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear carreras en su facultad',
+        });
+      }
+    } else {
+      // Otros roles no pueden crear carreras
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para crear carreras',
       });
     }
 

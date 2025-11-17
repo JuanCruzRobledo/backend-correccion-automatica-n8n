@@ -179,3 +179,81 @@ export const verify = async (req, res) => {
     });
   }
 };
+
+/**
+ * Cambiar contraseña - POST /api/auth/change-password
+ * @route POST /api/auth/change-password
+ * @access Private (requiere autenticación)
+ */
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    // Validar datos
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Contraseña actual y nueva contraseña son requeridas',
+      });
+    }
+
+    // Validar requisitos de nueva contraseña
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'La nueva contraseña debe tener al menos 8 caracteres',
+      });
+    }
+
+    // Validar que la nueva contraseña sea diferente
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'La nueva contraseña debe ser diferente a la actual',
+      });
+    }
+
+    // Buscar usuario con password
+    const user = await User.findById(userId).select('+password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    // Verificar contraseña actual
+    const isPasswordValid = await user.comparePassword(currentPassword);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'La contraseña actual es incorrecta',
+      });
+    }
+
+    // Actualizar contraseña
+    user.password = newPassword;
+
+    // Marcar first_login como false (ya cambió su contraseña)
+    user.first_login = false;
+
+    await user.save();
+
+    // Responder con éxito
+    res.status(200).json({
+      success: true,
+      message: 'Contraseña actualizada exitosamente',
+      user: user.toPublicJSON(),
+    });
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error en el servidor',
+      error: error.message,
+    });
+  }
+};

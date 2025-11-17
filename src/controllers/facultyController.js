@@ -12,12 +12,37 @@ import * as driveService from '../services/driveService.js';
 export const getFaculties = async (req, res) => {
   try {
     const { university_id } = req.query;
+    const userRole = req.user.role;
 
     let faculties;
-    if (university_id) {
-      faculties = await Faculty.findActive(university_id);
+
+    // Filtrar según rol del usuario
+    if (userRole === 'super-admin') {
+      // Super-admin ve todas las facultades
+      if (university_id) {
+        faculties = await Faculty.findActive(university_id);
+      } else {
+        faculties = await Faculty.findActive();
+      }
+    } else if (userRole === 'university-admin') {
+      // University-admin solo ve facultades de su universidad
+      faculties = await Faculty.findActive(req.user.university_id);
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo ve SU facultad
+      faculties = await Faculty.find({
+        faculty_id: req.user.faculty_id,
+        deleted: false
+      });
+    } else if (userRole === 'professor-admin' || userRole === 'professor') {
+      // Professor-admin y professor ven facultades según sus cursos/comisiones
+      // Por ahora permiten ver de su universidad
+      faculties = await Faculty.findActive(req.user.university_id);
     } else {
-      faculties = await Faculty.findActive();
+      // User no tiene acceso
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para ver facultades',
+      });
     }
 
     res.status(200).json({
@@ -80,11 +105,31 @@ export const getFacultyById = async (req, res) => {
 export const createFaculty = async (req, res) => {
   try {
     const { faculty_id, name, university_id } = req.body;
+    const userRole = req.user.role;
 
     // Validar campos requeridos
     if (!faculty_id || !name || !university_id) {
       return res.status(400).json({
         message: 'Faltan campos requeridos: faculty_id, name, university_id',
+      });
+    }
+
+    // Validar permisos según rol
+    if (userRole === 'super-admin') {
+      // Super-admin puede crear en cualquier universidad
+    } else if (userRole === 'university-admin') {
+      // University-admin solo puede crear en su universidad
+      if (university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear facultades en su universidad',
+        });
+      }
+    } else {
+      // faculty-admin, professor-admin, professor, user NO pueden crear facultades
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para crear facultades',
       });
     }
 

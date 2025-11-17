@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['super-admin', 'university-admin', 'professor', 'user'],
+      enum: ['super-admin', 'university-admin', 'faculty-admin', 'professor-admin', 'professor', 'user'],
       default: 'user',
       required: true,
     },
@@ -39,6 +39,21 @@ const userSchema = new mongoose.Schema(
       index: true,
       trim: true,
       lowercase: true,
+    },
+    faculty_id: {
+      type: String,
+      default: null,
+      index: true,
+      trim: true,
+    },
+    course_ids: {
+      type: [String],
+      default: [],
+      index: true,
+    },
+    first_login: {
+      type: Boolean,
+      default: true,
     },
     // Campos para API Key de Gemini
     gemini_api_key_encrypted: {
@@ -77,9 +92,11 @@ userSchema.index({ deleted: 1 });
 userSchema.index({ gemini_api_key_is_valid: 1 });
 userSchema.index({ university_id: 1, deleted: 1 });
 userSchema.index({ role: 1, university_id: 1 });
+userSchema.index({ faculty_id: 1, deleted: 1 });
+userSchema.index({ course_ids: 1 });
 
 /**
- * Hook pre-save para validar university_id y hashear la contraseña
+ * Hook pre-save para validar university_id, faculty_id, course_ids y hashear la contraseña
  */
 userSchema.pre('save', async function (next) {
   // Validar que university_id sea requerido para todos excepto super-admin
@@ -90,6 +107,28 @@ userSchema.pre('save', async function (next) {
   // super-admin NO debe tener university_id
   if (this.role === 'super-admin' && this.university_id) {
     this.university_id = null;
+  }
+
+  // Validar faculty_id para faculty-admin
+  if (this.role === 'faculty-admin' && !this.faculty_id) {
+    return next(new Error('El campo faculty_id es requerido para el rol faculty-admin'));
+  }
+
+  // Limpiar faculty_id si no es faculty-admin
+  if (this.role !== 'faculty-admin' && this.faculty_id) {
+    this.faculty_id = null;
+  }
+
+  // Validar course_ids para professor-admin
+  if (this.role === 'professor-admin') {
+    if (!this.course_ids || this.course_ids.length === 0) {
+      return next(new Error('El campo course_ids debe tener al menos un curso para el rol professor-admin'));
+    }
+  }
+
+  // Limpiar course_ids si no es professor-admin
+  if (this.role !== 'professor-admin' && this.course_ids && this.course_ids.length > 0) {
+    this.course_ids = [];
   }
 
   // Solo hashear si la contraseña fue modificada (o es nueva)
@@ -131,6 +170,9 @@ userSchema.methods.toPublicJSON = function () {
     name: this.name,
     role: this.role,
     university_id: this.university_id,
+    faculty_id: this.faculty_id,
+    course_ids: this.course_ids,
+    first_login: this.first_login,
     deleted: this.deleted || false, // Incluir campo deleted
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
@@ -295,6 +337,28 @@ userSchema.statics.findProfessorsByUniversity = function (university_id) {
   return this.find({
     university_id,
     role: 'professor',
+    deleted: false
+  });
+};
+
+/**
+ * Método estático para encontrar usuarios por facultad
+ * @param {String} faculty_id
+ * @returns {Promise<Array>}
+ */
+userSchema.statics.findByFaculty = function (faculty_id) {
+  return this.find({ faculty_id, deleted: false });
+};
+
+/**
+ * Método estático para encontrar profesores-admin por curso
+ * @param {String} course_id
+ * @returns {Promise<Array>}
+ */
+userSchema.statics.findProfessorAdminsByCourse = function (course_id) {
+  return this.find({
+    role: 'professor-admin',
+    course_ids: course_id,
     deleted: false
   });
 };

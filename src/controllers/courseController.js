@@ -13,12 +13,38 @@ import * as driveService from '../services/driveService.js';
 export const getCourses = async (req, res) => {
   try {
     const { career_id, year, faculty_id, university_id } = req.query;
+    const userRole = req.user.role;
 
     const filters = {};
     if (career_id) filters.career_id = career_id;
     if (year) filters.year = parseInt(year);
-    if (faculty_id) filters.faculty_id = faculty_id;
-    if (university_id) filters.university_id = university_id;
+
+    // Aplicar filtros según rol del usuario
+    if (userRole === 'super-admin') {
+      // Super-admin ve todos los cursos
+      if (faculty_id) filters.faculty_id = faculty_id;
+      if (university_id) filters.university_id = university_id;
+    } else if (userRole === 'university-admin') {
+      // University-admin solo ve cursos de su universidad
+      filters.university_id = req.user.university_id;
+      if (faculty_id) filters.faculty_id = faculty_id;
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo ve cursos de su facultad
+      filters.university_id = req.user.university_id;
+      filters.faculty_id = req.user.faculty_id;
+    } else if (userRole === 'professor-admin') {
+      // Professor-admin solo ve sus cursos asignados
+      filters.course_id = { $in: req.user.course_ids };
+    } else if (userRole === 'professor') {
+      // Professor ve cursos donde tiene comisiones
+      filters.university_id = req.user.university_id;
+    } else {
+      // User no tiene acceso
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para ver cursos',
+      });
+    }
 
     const courses = await Course.findActive(filters);
 
@@ -77,12 +103,40 @@ export const getCourseById = async (req, res) => {
 export const createCourse = async (req, res) => {
   try {
     const { course_id, name, year, career_id, faculty_id, university_id } = req.body;
+    const userRole = req.user.role;
 
     // Validar datos requeridos
     if (!course_id || !name || !year || !career_id || !faculty_id || !university_id) {
       return res.status(400).json({
         success: false,
         message: 'Faltan campos requeridos: course_id, name, year, career_id, faculty_id, university_id',
+      });
+    }
+
+    // Validar permisos según rol
+    if (userRole === 'super-admin') {
+      // Super-admin puede crear en cualquier carrera
+    } else if (userRole === 'university-admin') {
+      // University-admin solo puede crear en carreras de su universidad
+      if (university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear cursos en su universidad',
+        });
+      }
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo puede crear en carreras de su facultad
+      if (university_id !== req.user.university_id || faculty_id !== req.user.faculty_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear cursos en su facultad',
+        });
+      }
+    } else {
+      // professor-admin y otros roles NO pueden crear cursos
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para crear cursos',
       });
     }
 

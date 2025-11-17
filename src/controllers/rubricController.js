@@ -16,15 +16,88 @@ import path from 'path';
 export const getRubrics = async (req, res) => {
   try {
     const { commission_id, course_id, rubric_type, year, career_id, faculty_id, university_id } = req.query;
+    const userRole = req.user.role;
 
     const filters = {};
-    if (commission_id) filters.commission_id = commission_id;
-    if (course_id) filters.course_id = course_id;
     if (rubric_type) filters.rubric_type = rubric_type;
     if (year) filters.year = parseInt(year);
-    if (career_id) filters.career_id = career_id;
-    if (faculty_id) filters.faculty_id = faculty_id;
-    if (university_id) filters.university_id = university_id;
+
+    // Aplicar filtros según rol del usuario
+    if (userRole === 'super-admin') {
+      // Super-admin ve todas las rúbricas
+      if (commission_id) filters.commission_id = commission_id;
+      if (course_id) filters.course_id = course_id;
+      if (career_id) filters.career_id = career_id;
+      if (faculty_id) filters.faculty_id = faculty_id;
+      if (university_id) filters.university_id = university_id;
+    } else if (userRole === 'university-admin') {
+      // University-admin solo ve rúbricas de su universidad
+      filters.university_id = req.user.university_id;
+      if (commission_id) filters.commission_id = commission_id;
+      if (course_id) filters.course_id = course_id;
+      if (career_id) filters.career_id = career_id;
+      if (faculty_id) filters.faculty_id = faculty_id;
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo ve rúbricas de su facultad
+      filters.university_id = req.user.university_id;
+      filters.faculty_id = req.user.faculty_id;
+      if (commission_id) filters.commission_id = commission_id;
+      if (course_id) filters.course_id = course_id;
+      if (career_id) filters.career_id = career_id;
+    } else if (userRole === 'professor-admin') {
+      // Professor-admin solo ve rúbricas de SUS cursos
+      filters.course_id = { $in: req.user.course_ids };
+      if (course_id) {
+        // Validar que el course_id solicitado esté en sus cursos
+        if (!req.user.course_ids.includes(course_id)) {
+          return res.status(403).json({
+            success: false,
+            message: 'No tiene permisos para ver rúbricas de este curso',
+          });
+        }
+        filters.course_id = course_id;
+      }
+      if (commission_id) filters.commission_id = commission_id;
+    } else if (userRole === 'professor') {
+      // Professor solo ve rúbricas de sus comisiones
+      // Necesitamos buscar primero las comisiones del profesor
+      const commissions = await Commission.find({
+        professors: req.user.userId,
+        deleted: false
+      }).select('commission_id');
+
+      const commissionIds = commissions.map(c => c.commission_id);
+
+      if (commissionIds.length === 0) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+        });
+      }
+
+      filters.commission_id = { $in: commissionIds };
+      if (commission_id) {
+        // Validar que tenga acceso a esa comisión
+        if (!commissionIds.includes(commission_id)) {
+          return res.status(403).json({
+            success: false,
+            message: 'No tiene permisos para ver rúbricas de esta comisión',
+          });
+        }
+        filters.commission_id = commission_id;
+      }
+    } else if (userRole === 'user') {
+      // User puede ver rúbricas (para corrección)
+      filters.university_id = req.user.university_id;
+      if (commission_id) filters.commission_id = commission_id;
+      if (course_id) filters.course_id = course_id;
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para ver rúbricas',
+      });
+    }
 
     const rubrics = await Rubric.findActive(filters);
 
@@ -95,6 +168,8 @@ export const createRubric = async (req, res) => {
       rubric_json,
     } = req.body;
 
+    const userRole = req.user.role;
+
     // Validar datos requeridos
     if (
       !name ||
@@ -112,6 +187,55 @@ export const createRubric = async (req, res) => {
         success: false,
         message:
           'Faltan campos requeridos: name, commission_id, course_id, career_id, faculty_id, university_id, rubric_type, rubric_number, year, rubric_json',
+      });
+    }
+
+    // Validar permisos según rol
+    if (userRole === 'super-admin') {
+      // Super-admin puede crear en cualquier comisión
+    } else if (userRole === 'university-admin') {
+      // University-admin solo puede crear en su universidad
+      if (university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear rúbricas en su universidad',
+        });
+      }
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo puede crear en su facultad
+      if (university_id !== req.user.university_id || faculty_id !== req.user.faculty_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear rúbricas en su facultad',
+        });
+      }
+    } else if (userRole === 'professor-admin') {
+      // Professor-admin solo puede crear rúbricas de SUS cursos
+      if (!req.user.course_ids.includes(course_id)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear rúbricas para sus cursos asignados',
+        });
+      }
+    } else if (userRole === 'professor') {
+      // Professor puede crear rúbricas de sus comisiones
+      const commission = await Commission.findOne({
+        commission_id,
+        professors: req.user.userId,
+        deleted: false
+      });
+
+      if (!commission) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear rúbricas para sus comisiones asignadas',
+        });
+      }
+    } else {
+      // User no puede crear rúbricas
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para crear rúbricas',
       });
     }
 

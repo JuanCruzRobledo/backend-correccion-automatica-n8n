@@ -16,7 +16,7 @@ export const getUsers = async (req, res) => {
     const includeDeleted = req.query.includeDeleted === 'true';
     const { role, university_id } = req.query;
 
-    // Construir filtros
+    // Construir filtros base
     const filters = {};
 
     if (!includeDeleted) {
@@ -27,8 +27,27 @@ export const getUsers = async (req, res) => {
       filters.role = role;
     }
 
-    if (university_id) {
-      filters.university_id = university_id;
+    // Aplicar filtros según el rol del usuario que consulta
+    const userRole = req.user.role;
+
+    if (userRole === 'super-admin') {
+      // Super-admin ve todos los usuarios
+      if (university_id) {
+        filters.university_id = university_id;
+      }
+    } else if (userRole === 'university-admin') {
+      // University-admin solo ve usuarios de su universidad
+      filters.university_id = req.user.university_id;
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo ve usuarios de su facultad
+      filters.university_id = req.user.university_id;
+      filters.faculty_id = req.user.faculty_id;
+    } else {
+      // Otros roles no tienen acceso
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para listar usuarios',
+      });
     }
 
     const users = await User.find(filters);
@@ -90,9 +109,9 @@ export const getUserById = async (req, res) => {
  */
 export const createUser = async (req, res) => {
   try {
-    const { username, name, password, role, university_id } = req.body;
+    const { username, name, password, role, university_id, faculty_id, course_ids } = req.body;
 
-    // Validar datos
+    // Validar datos básicos
     if (!username || !password || !name) {
       return res.status(400).json({
         success: false,
@@ -100,13 +119,92 @@ export const createUser = async (req, res) => {
       });
     }
 
-    // Validar university_id para roles que no sean super-admin
+    // Determinar rol del usuario a crear
     const userRole = role || 'user';
+
+    // Validar permisos según rol del creador
+    const creatorRole = req.user.role;
+
+    // super-admin puede crear cualquier rol
+    if (creatorRole === 'super-admin') {
+      // Sin restricciones
+    }
+    // university-admin puede crear: faculty-admin, professor-admin, professor, user
+    else if (creatorRole === 'university-admin') {
+      const allowedRoles = ['faculty-admin', 'professor-admin', 'professor', 'user'];
+      if (!allowedRoles.includes(userRole)) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tiene permisos para crear usuarios con rol ' + userRole,
+        });
+      }
+    }
+    // faculty-admin puede crear: professor-admin, professor, user
+    else if (creatorRole === 'faculty-admin') {
+      const allowedRoles = ['professor-admin', 'professor', 'user'];
+      if (!allowedRoles.includes(userRole)) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tiene permisos para crear usuarios con rol ' + userRole,
+        });
+      }
+    }
+    // Otros roles no pueden crear usuarios
+    else {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para crear usuarios',
+      });
+    }
+
+    // Validar university_id para roles que no sean super-admin
     if (userRole !== 'super-admin' && !university_id) {
       return res.status(400).json({
         success: false,
         message: 'El campo university_id es requerido para roles que no sean super-admin',
       });
+    }
+
+    // Validar faculty_id para faculty-admin
+    if (userRole === 'faculty-admin' && !faculty_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'El campo faculty_id es requerido para el rol faculty-admin',
+      });
+    }
+
+    // Validar course_ids para professor-admin
+    if (userRole === 'professor-admin') {
+      if (!course_ids || !Array.isArray(course_ids) || course_ids.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'El campo course_ids debe ser un array con al menos un curso para el rol professor-admin',
+        });
+      }
+    }
+
+    // Verificar que el creador no esté creando usuarios fuera de su alcance
+    if (creatorRole === 'university-admin' && university_id !== req.user.university_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Solo puede crear usuarios en su universidad',
+      });
+    }
+
+    if (creatorRole === 'faculty-admin') {
+      if (university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear usuarios en su universidad',
+        });
+      }
+      // Si crea faculty-admin, debe ser de su facultad
+      if (userRole === 'faculty-admin' && faculty_id !== req.user.faculty_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear faculty-admin en su facultad',
+        });
+      }
     }
 
     // Verificar si el usuario ya existe (activo o eliminado)
@@ -129,13 +227,25 @@ export const createUser = async (req, res) => {
     }
 
     // Crear usuario
-    const user = new User({
+    const userData = {
       username,
       name,
       password,
       role: userRole,
       university_id: userRole === 'super-admin' ? null : university_id,
-    });
+    };
+
+    // Agregar faculty_id si aplica
+    if (userRole === 'faculty-admin' && faculty_id) {
+      userData.faculty_id = faculty_id;
+    }
+
+    // Agregar course_ids si aplica
+    if (userRole === 'professor-admin' && course_ids) {
+      userData.course_ids = course_ids;
+    }
+
+    const user = new User(userData);
 
     await user.save();
 
@@ -172,7 +282,7 @@ export const createUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, name, password, role, university_id } = req.body;
+    const { username, name, password, role, university_id, faculty_id, course_ids } = req.body;
 
     // Buscar usuario
     const user = await User.findById(id);
@@ -181,6 +291,34 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Usuario no encontrado',
+      });
+    }
+
+    // Validar permisos según rol del modificador
+    const modifierRole = req.user.role;
+
+    if (modifierRole === 'super-admin') {
+      // Super-admin puede actualizar cualquier usuario
+    } else if (modifierRole === 'university-admin') {
+      // University-admin solo puede actualizar usuarios de su universidad
+      if (user.university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede actualizar usuarios de su universidad',
+        });
+      }
+    } else if (modifierRole === 'faculty-admin') {
+      // Faculty-admin solo puede actualizar usuarios de su facultad
+      if (user.university_id !== req.user.university_id || user.faculty_id !== req.user.faculty_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede actualizar usuarios de su facultad',
+        });
+      }
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para actualizar usuarios',
       });
     }
 
@@ -233,11 +371,33 @@ export const updateUser = async (req, res) => {
           message: 'No se puede cambiar el rol del administrador principal',
         });
       }
+
+      // Validar que no se escalen privilegios
+      if (modifierRole === 'university-admin') {
+        const allowedRoles = ['faculty-admin', 'professor-admin', 'professor', 'user'];
+        if (!allowedRoles.includes(role)) {
+          return res.status(403).json({
+            success: false,
+            message: 'No puede asignar ese rol',
+          });
+        }
+      } else if (modifierRole === 'faculty-admin') {
+        const allowedRoles = ['professor-admin', 'professor', 'user'];
+        if (!allowedRoles.includes(role)) {
+          return res.status(403).json({
+            success: false,
+            message: 'No puede asignar ese rol',
+          });
+        }
+      }
+
       user.role = role;
 
       // Si cambia a super-admin, limpiar university_id
       if (role === 'super-admin') {
         user.university_id = null;
+        user.faculty_id = null;
+        user.course_ids = [];
       }
     }
 
@@ -248,7 +408,40 @@ export const updateUser = async (req, res) => {
       if (finalRole === 'super-admin') {
         user.university_id = null;
       } else {
+        // Validar que no se cambie a otra universidad sin permisos
+        if (modifierRole === 'university-admin' && university_id !== req.user.university_id) {
+          return res.status(403).json({
+            success: false,
+            message: 'No puede cambiar usuarios a otra universidad',
+          });
+        }
         user.university_id = university_id;
+      }
+    }
+
+    // Actualizar faculty_id si se proporciona
+    if (faculty_id !== undefined) {
+      const finalRole = role || user.role;
+      if (finalRole === 'faculty-admin') {
+        user.faculty_id = faculty_id;
+      } else {
+        user.faculty_id = null;
+      }
+    }
+
+    // Actualizar course_ids si se proporciona
+    if (course_ids !== undefined) {
+      const finalRole = role || user.role;
+      if (finalRole === 'professor-admin') {
+        if (!Array.isArray(course_ids) || course_ids.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'course_ids debe ser un array con al menos un elemento',
+          });
+        }
+        user.course_ids = course_ids;
+      } else {
+        user.course_ids = [];
       }
     }
 

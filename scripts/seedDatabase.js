@@ -423,7 +423,87 @@ const seedDatabase = async () => {
     users.push(universityAdmin);
     console.log('   ✅ university-admin: admin-utn / admin123 (gestiona UTN)');
 
-    // 5.3. Profesores (con university_id)
+    // 5.3. Faculty Admin (con university_id y faculty_id) - NUEVO EN V4
+    const facultyAdmin1 = new User({
+      username: 'admin-frm',
+      name: 'Administrador FRM',
+      password: 'admin123',
+      role: 'faculty-admin',
+      university_id: 'utn',
+      faculty_id: 'frm',
+      first_login: true, // Debe cambiar contraseña en primer login
+      deleted: false,
+    });
+    await facultyAdmin1.save();
+    users.push(facultyAdmin1);
+    console.log('   ✅ faculty-admin: admin-frm / admin123 (gestiona FRM)');
+
+    const facultyAdmin2 = new User({
+      username: 'admin-frsn',
+      name: 'Administrador FRSN',
+      password: 'admin123',
+      role: 'faculty-admin',
+      university_id: 'utn',
+      faculty_id: 'frsn',
+      first_login: true,
+      deleted: false,
+    });
+    await facultyAdmin2.save();
+    users.push(facultyAdmin2);
+    console.log('   ✅ faculty-admin: admin-frsn / admin123 (gestiona FRSN)');
+
+    // 5.4. Professor Admin (Jefe de Cátedra) - NUEVO EN V4
+    const professorAdmin1 = new User({
+      username: 'jefe-prog1-frm',
+      name: 'Jefe Programación 1 FRM',
+      password: 'admin123',
+      role: 'professor-admin',
+      university_id: 'utn',
+      faculty_id: 'frm',
+      course_ids: [`${currentYear}-isi-frm-programacion-1`],
+      first_login: true,
+      deleted: false,
+    });
+    await professorAdmin1.save();
+    users.push(professorAdmin1);
+    console.log('   ✅ professor-admin: jefe-prog1-frm / admin123 (Jefe de Programación 1 FRM)');
+
+    const professorAdmin2 = new User({
+      username: 'jefe-prog2-frm',
+      name: 'Jefe Programación 2 FRM',
+      password: 'admin123',
+      role: 'professor-admin',
+      university_id: 'utn',
+      faculty_id: 'frm',
+      course_ids: [`${currentYear}-isi-frm-programacion-2`],
+      first_login: true,
+      deleted: false,
+    });
+    await professorAdmin2.save();
+    users.push(professorAdmin2);
+    console.log('   ✅ professor-admin: jefe-prog2-frm / admin123 (Jefe de Programación 2 FRM)');
+
+    // Jefe de cátedra con múltiples materias
+    const professorAdmin3 = new User({
+      username: 'jefe-multi-frsn',
+      name: 'Jefe Múltiples Materias FRSN',
+      password: 'admin123',
+      role: 'professor-admin',
+      university_id: 'utn',
+      faculty_id: 'frsn',
+      course_ids: [
+        `${currentYear}-isi-frsn-programacion-1`,
+        `${currentYear}-isi-frsn-programacion-2`,
+        `${currentYear}-isi-frsn-programacion-3`,
+      ],
+      first_login: true,
+      deleted: false,
+    });
+    await professorAdmin3.save();
+    users.push(professorAdmin3);
+    console.log('   ✅ professor-admin: jefe-multi-frsn / admin123 (Jefe de 3 materias FRSN)');
+
+    // 5.5. Profesores (con university_id)
     const professor1 = new User({
       username: 'prof-garcia',
       name: 'María García',
@@ -576,7 +656,7 @@ const seedDatabase = async () => {
 
     // Resumen
     console.log('='.repeat(80));
-    console.log('✅ MIGRACIÓN COMPLETADA EXITOSAMENTE CON NUEVA JERARQUÍA!');
+    console.log('✅ MIGRACIÓN COMPLETADA EXITOSAMENTE - VERSIÓN 4.0 (ROLES JERÁRQUICOS)');
     console.log('='.repeat(80));
     console.log('📊 Resumen:');
     console.log(`   - Universidades: ${createdUniversities.length}`);
@@ -585,18 +665,30 @@ const seedDatabase = async () => {
     console.log(`   - Cursos: ${createdCourses.length}`);
     console.log(`   - Comisiones: ${createdCommissions.length}`);
     console.log(`   - Rúbricas: ${createdRubrics.length}`);
-    console.log(`   - Usuarios: ${users.length} (1 super-admin, 1 university-admin, 3 professors, 1 user)`);
+    console.log(`   - Usuarios: ${users.length} (6 roles: super-admin, university-admin, faculty-admin, professor-admin, professor, user)`);
     console.log('='.repeat(80));
     console.log('\n📖 Estructura Jerárquica:');
     console.log('   Universidad → Facultad → Carrera → Materia (con año) → Comisión → Rúbrica (con tipo)');
     console.log('='.repeat(80));
-    console.log('\n🔐 Credenciales de acceso:');
-    console.log('   Super Admin:      superadmin     / admin123  (acceso global)');
-    console.log('   University Admin: admin-utn      / admin123  (gestiona UTN)');
-    console.log('   Profesores:       prof-garcia    / prof123   (comisiones Prog 1 - FRM)');
-    console.log('                     prof-lopez     / prof123   (comisiones Prog 2 - FRM)');
-    console.log('                     prof-martinez  / prof123   (comisiones Diseño - FRM)');
-    console.log('   User:             usuario        / usuario123 (solo corrección)');
+    console.log('\n🔐 Credenciales de acceso (V4 - ROLES JERÁRQUICOS):');
+    console.log('\n   🌍 SUPER-ADMIN (acceso global):');
+    console.log('      superadmin / admin123');
+    console.log('\n   🏫 UNIVERSITY-ADMIN (gestiona UTN completa):');
+    console.log('      admin-utn / admin123');
+    console.log('\n   🏛️  FACULTY-ADMIN (⭐ NUEVO V4 - gestiona su facultad):');
+    console.log('      admin-frm  / admin123  (gestiona FRM)  [first_login=true]');
+    console.log('      admin-frsn / admin123  (gestiona FRSN) [first_login=true]');
+    console.log('\n   👨‍🏫 PROFESSOR-ADMIN (⭐ NUEVO V4 - Jefes de Cátedra):');
+    console.log('      jefe-prog1-frm  / admin123  (Programación 1 FRM)    [first_login=true]');
+    console.log('      jefe-prog2-frm  / admin123  (Programación 2 FRM)    [first_login=true]');
+    console.log('      jefe-multi-frsn / admin123  (3 materias FRSN)       [first_login=true]');
+    console.log('\n   👨‍🏫 PROFESSORS (asignados a comisiones):');
+    console.log('      prof-garcia   / prof123  (Prog 1 FRM)');
+    console.log('      prof-lopez    / prof123  (Prog 2 FRM)');
+    console.log('      prof-martinez / prof123  (Diseño FRM)');
+    console.log('\n   👤 USER (solo corrección):');
+    console.log('      usuario / usuario123');
+    console.log('\n   ⚠️  NOTA: Usuarios con first_login=true DEBEN cambiar contraseña en primer acceso');
     console.log('='.repeat(80));
   } catch (error) {
     console.error('❌ Error en migración:', error);

@@ -15,16 +15,56 @@ import * as driveService from '../services/driveService.js';
 export const getCommissions = async (req, res) => {
   try {
     const { course_id, year, career_id, faculty_id, university_id } = req.query;
+    const userRole = req.user.role;
 
     const filters = {};
-    if (course_id) filters.course_id = course_id;
     if (year) filters.year = parseInt(year);
-    if (career_id) filters.career_id = career_id;
-    if (faculty_id) filters.faculty_id = faculty_id;
-    if (university_id) filters.university_id = university_id;
 
-    // Advertencia si se filtra por course_id sin career_id
-    if (course_id && !career_id) {
+    // Aplicar filtros según rol del usuario
+    if (userRole === 'super-admin') {
+      // Super-admin ve todas las comisiones
+      if (course_id) filters.course_id = course_id;
+      if (career_id) filters.career_id = career_id;
+      if (faculty_id) filters.faculty_id = faculty_id;
+      if (university_id) filters.university_id = university_id;
+    } else if (userRole === 'university-admin') {
+      // University-admin solo ve comisiones de su universidad
+      filters.university_id = req.user.university_id;
+      if (course_id) filters.course_id = course_id;
+      if (career_id) filters.career_id = career_id;
+      if (faculty_id) filters.faculty_id = faculty_id;
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo ve comisiones de su facultad
+      filters.university_id = req.user.university_id;
+      filters.faculty_id = req.user.faculty_id;
+      if (course_id) filters.course_id = course_id;
+      if (career_id) filters.career_id = career_id;
+    } else if (userRole === 'professor-admin') {
+      // Professor-admin solo ve comisiones de SUS cursos
+      filters.course_id = { $in: req.user.course_ids };
+      if (course_id) {
+        // Validar que el course_id solicitado esté en sus cursos
+        if (!req.user.course_ids.includes(course_id)) {
+          return res.status(403).json({
+            success: false,
+            message: 'No tiene permisos para ver comisiones de este curso',
+          });
+        }
+        filters.course_id = course_id;
+      }
+    } else if (userRole === 'professor') {
+      // Professor solo ve comisiones donde está asignado
+      filters.professors = req.user.userId;
+    } else {
+      // User no tiene acceso
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para ver comisiones',
+      });
+    }
+
+    // Advertencia si se filtra por course_id sin career_id (solo super-admin)
+    if (course_id && !career_id && userRole === 'super-admin') {
       console.warn(`⚠️  GET /api/commissions: Buscando comisiones por course_id sin career_id. Esto puede devolver duplicados de diferentes carreras.`);
     }
 
@@ -98,11 +138,48 @@ export const createCommission = async (req, res) => {
       year,
     } = req.body;
 
+    const userRole = req.user.role;
+
     // Validar campos requeridos
     if (!commission_id || !name || !course_id || !career_id || !faculty_id || !university_id || !year) {
       return res.status(400).json({
         message:
           'Faltan campos requeridos: commission_id, name, course_id, career_id, faculty_id, university_id, year',
+      });
+    }
+
+    // Validar permisos según rol
+    if (userRole === 'super-admin') {
+      // Super-admin puede crear en cualquier curso
+    } else if (userRole === 'university-admin') {
+      // University-admin solo puede crear en su universidad
+      if (university_id !== req.user.university_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear comisiones en su universidad',
+        });
+      }
+    } else if (userRole === 'faculty-admin') {
+      // Faculty-admin solo puede crear en su facultad
+      if (university_id !== req.user.university_id || faculty_id !== req.user.faculty_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear comisiones en su facultad',
+        });
+      }
+    } else if (userRole === 'professor-admin') {
+      // Professor-admin solo puede crear comisiones en SUS cursos
+      if (!req.user.course_ids.includes(course_id)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Solo puede crear comisiones en sus cursos asignados',
+        });
+      }
+    } else {
+      // Professor y user no pueden crear comisiones
+      return res.status(403).json({
+        success: false,
+        message: 'No tiene permisos para crear comisiones',
       });
     }
 

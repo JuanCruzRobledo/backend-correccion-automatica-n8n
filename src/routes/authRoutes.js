@@ -2,7 +2,7 @@
  * Rutas de Autenticación
  */
 import express from 'express';
-import { login, register, verify } from '../controllers/authController.js';
+import { login, register, verify, changePassword } from '../controllers/authController.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -27,5 +27,12 @@ router.post('/register', register);
  * @access  Private
  */
 router.get('/verify', authenticate, verify);
+
+/**
+ * @route   POST /api/auth/change-password
+ * @desc    Cambiar contraseña del usuario autenticado
+ * @access  Private
+ */
+router.post('/change-password', authenticate, changePassword);
 
 export default router;
