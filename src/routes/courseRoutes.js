@@ -16,16 +16,16 @@ const router = express.Router();
 /**
  * @route   GET /api/courses
  * @desc    Obtener todos los cursos activos (con filtros opcionales: career_id, year, faculty_id, university_id)
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/', getCourses);
+router.get('/', authenticate, getCourses);
 
 /**
  * @route   GET /api/courses/:id
  * @desc    Obtener un curso por ID
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/:id', getCourseById);
+router.get('/:id', authenticate, getCourseById);
 
 /**
  * @route   POST /api/courses

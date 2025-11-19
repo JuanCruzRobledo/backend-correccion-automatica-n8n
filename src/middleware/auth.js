@@ -56,6 +56,9 @@ export const authenticate = async (req, res, next) => {
       username: user.username,
       role: user.role,
       university_id: user.university_id,
+      faculty_id: user.faculty_id,
+      career_id: user.career_id,
+      course_ids: user.course_ids,
     };
 
     next();
@@ -70,7 +73,7 @@ export const authenticate = async (req, res, next) => {
 };
 
 /**
- * Middleware para verificar que el usuario es admin (university-admin o super-admin)
+ * Middleware para verificar que el usuario es admin (cualquier tipo de admin)
  * Debe ejecutarse DESPUÉS del middleware authenticate
  * NOTA: Mantiene compatibilidad con código existente que usa 'admin'
  */
@@ -82,8 +85,8 @@ export const requireAdmin = (req, res, next) => {
     });
   }
 
-  // Permitir super-admin, university-admin y el antiguo 'admin' (compatibilidad)
-  const allowedRoles = ['super-admin', 'university-admin', 'admin'];
+  // Permitir todos los roles de administrador
+  const allowedRoles = ['super-admin', 'university-admin', 'faculty-admin', 'career-admin', 'course-admin', 'commission-admin', 'admin'];
 
   if (!allowedRoles.includes(req.user.role)) {
     return res.status(403).json({

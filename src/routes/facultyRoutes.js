@@ -25,16 +25,16 @@ router.get('/all', authenticate, requireAdmin, getAllFaculties);
 /**
  * @route   GET /api/faculties
  * @desc    Obtener todas las facultades activas (con filtros opcionales: university_id)
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/', getFaculties);
+router.get('/', authenticate, getFaculties);
 
 /**
  * @route   GET /api/faculties/:id
  * @desc    Obtener una facultad por ID
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/:id', getFacultyById);
+router.get('/:id', authenticate, getFacultyById);
 
 /**
  * @route   POST /api/faculties

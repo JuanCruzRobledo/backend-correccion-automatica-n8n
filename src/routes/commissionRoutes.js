@@ -38,30 +38,30 @@ router.get('/my-commissions', authenticate, getMyCommissions);
 /**
  * @route   GET /api/commissions/by-year/:year
  * @desc    Obtener comisiones por año
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/by-year/:year', getCommissionsByYear);
+router.get('/by-year/:year', authenticate, getCommissionsByYear);
 
 /**
  * @route   GET /api/commissions/unique
  * @desc    Obtener comisiones únicas (sin duplicados por carrera)
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/unique', getUniqueCommissions);
+router.get('/unique', authenticate, getUniqueCommissions);
 
 /**
  * @route   GET /api/commissions
  * @desc    Obtener todas las comisiones activas (con filtros opcionales: course_id, year, career_id, faculty_id, university_id)
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/', getCommissions);
+router.get('/', authenticate, getCommissions);
 
 /**
  * @route   GET /api/commissions/:id
  * @desc    Obtener una comisión por ID
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/:id', getCommissionById);
+router.get('/:id', authenticate, getCommissionById);
 
 /**
  * @route   POST /api/commissions

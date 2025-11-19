@@ -25,16 +25,16 @@ router.get('/all', authenticate, requireAdmin, getAllCareers);
 /**
  * @route   GET /api/careers
  * @desc    Obtener todas las carreras activas (con filtros opcionales: faculty_id, university_id)
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/', getCareers);
+router.get('/', authenticate, getCareers);
 
 /**
  * @route   GET /api/careers/:id
  * @desc    Obtener una carrera por ID
- * @access  Public
+ * @access  Private (requiere autenticación)
  */
-router.get('/:id', getCareerById);
+router.get('/:id', authenticate, getCareerById);
 
 /**
  * @route   POST /api/careers

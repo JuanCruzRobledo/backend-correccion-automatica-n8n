@@ -184,7 +184,8 @@ npm run seed
 | Método | Endpoint | Descripción | Auth |
 |--------|----------|-------------|------|
 | POST | `/api/auth/login` | Login de usuario | No |
-| POST | `/api/auth/register` | Registrar usuario | Admin |
+| POST | `/api/auth/register` | Registrar usuario (DESACTIVADO desde frontend) | Admin |
+| POST | `/api/auth/change-password` | Cambiar contraseña (obligatorio en primer login) | Sí |
 | GET | `/api/auth/verify` | Verificar token | Sí |
 
 #### Ejemplo Login
@@ -623,4 +624,4 @@ Para problemas o preguntas, consultar:
 
 ---
 
-**Última actualización**: 21 de Octubre, 2025
+**Última actualización**: Noviembre 2025
