@@ -19,36 +19,45 @@ dotenv.config();
 
 /**
  * Datos de universidades
- * Ahora solo hay 1 universidad: UTN
+ * 2 universidades: UTN y UBA
  */
 const universities = [
   { university_id: 'utn', name: 'Universidad Tecnológica Nacional (UTN)' },
+  { university_id: 'uba', name: 'Universidad de Buenos Aires (UBA)' },
 ];
 
 /**
- * Datos de facultades (Regional = Facultad en este contexto)
- * Todas pertenecen a la universidad 'utn'
+ * Datos de facultades
+ * UTN: Regionales (FRM, FRSN, FRA, FRBA)
+ * UBA: Facultades tradicionales (FIUBA, FCEyN)
  */
 const faculties = [
+  // UTN - Regionales
   { faculty_id: 'frm', name: 'Facultad Regional Mendoza', university_id: 'utn' },
   { faculty_id: 'frsn', name: 'Facultad Regional San Nicolás', university_id: 'utn' },
   { faculty_id: 'fra', name: 'Facultad Regional Avellaneda', university_id: 'utn' },
   { faculty_id: 'frba', name: 'Facultad Regional Buenos Aires', university_id: 'utn' },
+
+  // UBA - Facultades
+  { faculty_id: 'fiuba', name: 'Facultad de Ingeniería (FIUBA)', university_id: 'uba' },
+  { faculty_id: 'fcen', name: 'Facultad de Ciencias Exactas y Naturales (FCEyN)', university_id: 'uba' },
 ];
 
 /**
  * Datos de carreras
- * Todas pertenecen a la universidad 'utn'
+ * UTN: ISI en cada regional
+ * UBA: Ingeniería Informática (FIUBA) y Lic. en Ciencias de la Computación (FCEyN)
  */
 const careers = [
-  // FRM
+  // UTN - Ingeniería en Sistemas de Información
   { career_id: 'isi-frm', name: 'Ingeniería en Sistemas de Información', faculty_id: 'frm', university_id: 'utn' },
-  // FRSN
   { career_id: 'isi-frsn', name: 'Ingeniería en Sistemas de Información', faculty_id: 'frsn', university_id: 'utn' },
-  // FRA
   { career_id: 'isi-fra', name: 'Ingeniería en Sistemas de Información', faculty_id: 'fra', university_id: 'utn' },
-  // FRBA
   { career_id: 'isi-frba', name: 'Ingeniería en Sistemas de Información', faculty_id: 'frba', university_id: 'utn' },
+
+  // UBA - Carreras de computación
+  { career_id: 'ing-informatica-fiuba', name: 'Ingeniería Informática', faculty_id: 'fiuba', university_id: 'uba' },
+  { career_id: 'lic-computacion-fcen', name: 'Licenciatura en Ciencias de la Computación', faculty_id: 'fcen', university_id: 'uba' },
 ];
 
 /**
@@ -81,6 +90,19 @@ const courses = [
   { course_id: `${currentYear}-isi-frba-programacion-2`, name: 'Programación 2', year: currentYear, career_id: 'isi-frba', faculty_id: 'frba', university_id: 'utn' },
   { course_id: `${currentYear}-isi-frba-programacion-3`, name: 'Programación 3', year: currentYear, career_id: 'isi-frba', faculty_id: 'frba', university_id: 'utn' },
   { course_id: `${currentYear}-isi-frba-bases-de-datos-1`, name: 'Bases de Datos 1', year: currentYear, career_id: 'isi-frba', faculty_id: 'frba', university_id: 'utn' },
+
+  // UBA FIUBA - Ingeniería Informática
+  { course_id: `${currentYear}-ing-informatica-fiuba-algoritmos-1`, name: 'Algoritmos y Programación I', year: currentYear, career_id: 'ing-informatica-fiuba', faculty_id: 'fiuba', university_id: 'uba' },
+  { course_id: `${currentYear}-ing-informatica-fiuba-algoritmos-2`, name: 'Algoritmos y Programación II', year: currentYear, career_id: 'ing-informatica-fiuba', faculty_id: 'fiuba', university_id: 'uba' },
+  { course_id: `${currentYear}-ing-informatica-fiuba-algoritmos-3`, name: 'Algoritmos y Programación III', year: currentYear, career_id: 'ing-informatica-fiuba', faculty_id: 'fiuba', university_id: 'uba' },
+  { course_id: `${currentYear}-ing-informatica-fiuba-base-de-datos`, name: 'Base de Datos', year: currentYear, career_id: 'ing-informatica-fiuba', faculty_id: 'fiuba', university_id: 'uba' },
+  { course_id: `${currentYear}-ing-informatica-fiuba-taller-de-programacion`, name: 'Taller de Programación I', year: currentYear, career_id: 'ing-informatica-fiuba', faculty_id: 'fiuba', university_id: 'uba' },
+
+  // UBA FCEyN - Lic. en Ciencias de la Computación
+  { course_id: `${currentYear}-lic-computacion-fcen-algoritmos-1`, name: 'Algoritmos y Estructuras de Datos I', year: currentYear, career_id: 'lic-computacion-fcen', faculty_id: 'fcen', university_id: 'uba' },
+  { course_id: `${currentYear}-lic-computacion-fcen-algoritmos-2`, name: 'Algoritmos y Estructuras de Datos II', year: currentYear, career_id: 'lic-computacion-fcen', faculty_id: 'fcen', university_id: 'uba' },
+  { course_id: `${currentYear}-lic-computacion-fcen-algoritmos-3`, name: 'Algoritmos y Estructuras de Datos III', year: currentYear, career_id: 'lic-computacion-fcen', faculty_id: 'fcen', university_id: 'uba' },
+  { course_id: `${currentYear}-lic-computacion-fcen-bases-de-datos`, name: 'Bases de Datos', year: currentYear, career_id: 'lic-computacion-fcen', faculty_id: 'fcen', university_id: 'uba' },
 ];
 
 /**
@@ -540,7 +562,7 @@ const seedDatabase = async () => {
     users.push(professor3);
     console.log('   ✅ professor: prof-martinez / prof123');
 
-    // 5.4. User (con university_id)
+    // 5.5. User (con university_id)
     const regularUser = new User({
       username: 'usuario',
       name: 'Usuario Regular',
@@ -551,7 +573,132 @@ const seedDatabase = async () => {
     });
     await regularUser.save();
     users.push(regularUser);
-    console.log('   ✅ user: usuario / usuario123 (solo corrección)\n');
+    console.log('   ✅ user: usuario / usuario123 (UTN - solo corrección)');
+
+    console.log('\n   --- USUARIOS UBA ---\n');
+
+    // 5.6. University Admin UBA
+    const universityAdminUBA = new User({
+      username: 'admin-uba',
+      name: 'Administrador UBA',
+      password: 'admin123',
+      role: 'university-admin',
+      university_id: 'uba',
+      deleted: false,
+    });
+    await universityAdminUBA.save();
+    users.push(universityAdminUBA);
+    console.log('   ✅ university-admin: admin-uba / admin123 (gestiona UBA)');
+
+    // 5.7. Faculty Admin UBA - FIUBA
+    const facultyAdminFIUBA = new User({
+      username: 'admin-fiuba',
+      name: 'Administrador FIUBA',
+      password: 'admin123',
+      role: 'faculty-admin',
+      university_id: 'uba',
+      faculty_id: 'fiuba',
+      first_login: true,
+      deleted: false,
+    });
+    await facultyAdminFIUBA.save();
+    users.push(facultyAdminFIUBA);
+    console.log('   ✅ faculty-admin: admin-fiuba / admin123 (gestiona FIUBA)');
+
+    // 5.8. Faculty Admin UBA - FCEyN
+    const facultyAdminFCEN = new User({
+      username: 'admin-fcen',
+      name: 'Administrador FCEyN',
+      password: 'admin123',
+      role: 'faculty-admin',
+      university_id: 'uba',
+      faculty_id: 'fcen',
+      first_login: true,
+      deleted: false,
+    });
+    await facultyAdminFCEN.save();
+    users.push(facultyAdminFCEN);
+    console.log('   ✅ faculty-admin: admin-fcen / admin123 (gestiona FCEyN)');
+
+    // 5.9. Professor Admin FIUBA - Algoritmos
+    const professorAdminAlgo1FIUBA = new User({
+      username: 'jefe-algo1-fiuba',
+      name: 'Jefe Algoritmos I FIUBA',
+      password: 'admin123',
+      role: 'professor-admin',
+      university_id: 'uba',
+      faculty_id: 'fiuba',
+      course_ids: [`${currentYear}-ing-informatica-fiuba-algoritmos-1`],
+      first_login: true,
+      deleted: false,
+    });
+    await professorAdminAlgo1FIUBA.save();
+    users.push(professorAdminAlgo1FIUBA);
+    console.log('   ✅ professor-admin: jefe-algo1-fiuba / admin123 (Jefe Algoritmos I FIUBA)');
+
+    // 5.10. Professor Admin FCEyN - Múltiples materias
+    const professorAdminMultiFCEN = new User({
+      username: 'jefe-multi-fcen',
+      name: 'Jefe Múltiples Materias FCEyN',
+      password: 'admin123',
+      role: 'professor-admin',
+      university_id: 'uba',
+      faculty_id: 'fcen',
+      course_ids: [
+        `${currentYear}-lic-computacion-fcen-algoritmos-1`,
+        `${currentYear}-lic-computacion-fcen-algoritmos-2`,
+      ],
+      first_login: true,
+      deleted: false,
+    });
+    await professorAdminMultiFCEN.save();
+    users.push(professorAdminMultiFCEN);
+    console.log('   ✅ professor-admin: jefe-multi-fcen / admin123 (Jefe de 2 materias FCEyN)');
+
+    // 5.11. Profesores UBA
+    const professorUBA1 = new User({
+      username: 'prof-rodriguez',
+      name: 'Ana Rodríguez',
+      password: 'prof123',
+      role: 'professor',
+      university_id: 'uba',
+      faculty_id: 'fiuba',
+      course_ids: [
+        `${currentYear}-ing-informatica-fiuba-algoritmos-1`,
+        `${currentYear}-ing-informatica-fiuba-algoritmos-2`,
+      ],
+      deleted: false,
+    });
+    await professorUBA1.save();
+    users.push(professorUBA1);
+    console.log('   ✅ professor: prof-rodriguez / prof123 (Algoritmos I y II FIUBA)');
+
+    const professorUBA2 = new User({
+      username: 'prof-fernandez',
+      name: 'Roberto Fernández',
+      password: 'prof123',
+      role: 'professor',
+      university_id: 'uba',
+      faculty_id: 'fcen',
+      course_ids: [`${currentYear}-lic-computacion-fcen-bases-de-datos`],
+      deleted: false,
+    });
+    await professorUBA2.save();
+    users.push(professorUBA2);
+    console.log('   ✅ professor: prof-fernandez / prof123 (Bases de Datos FCEyN)');
+
+    // 5.12. User UBA
+    const regularUserUBA = new User({
+      username: 'usuario-uba',
+      name: 'Usuario Regular UBA',
+      password: 'usuario123',
+      role: 'user',
+      university_id: 'uba',
+      deleted: false,
+    });
+    await regularUserUBA.save();
+    users.push(regularUserUBA);
+    console.log('   ✅ user: usuario-uba / usuario123 (UBA - solo corrección)\n');
 
     // 6. Crear comisiones para cada curso (SIN professor_name/email)
     console.log('👥 Creando comisiones...');
@@ -656,38 +803,56 @@ const seedDatabase = async () => {
 
     // Resumen
     console.log('='.repeat(80));
-    console.log('✅ MIGRACIÓN COMPLETADA EXITOSAMENTE - VERSIÓN 4.0 (ROLES JERÁRQUICOS)');
+    console.log('✅ MIGRACIÓN COMPLETADA EXITOSAMENTE - VERSIÓN 4.1 (2 UNIVERSIDADES)');
     console.log('='.repeat(80));
     console.log('📊 Resumen:');
-    console.log(`   - Universidades: ${createdUniversities.length}`);
-    console.log(`   - Facultades: ${createdFaculties.length}`);
-    console.log(`   - Carreras: ${createdCareers.length}`);
+    console.log(`   - Universidades: ${createdUniversities.length} (UTN, UBA)`);
+    console.log(`   - Facultades: ${createdFaculties.length} (4 UTN + 2 UBA)`);
+    console.log(`   - Carreras: ${createdCareers.length} (4 UTN + 2 UBA)`);
     console.log(`   - Cursos: ${createdCourses.length}`);
     console.log(`   - Comisiones: ${createdCommissions.length}`);
     console.log(`   - Rúbricas: ${createdRubrics.length}`);
-    console.log(`   - Usuarios: ${users.length} (6 roles: super-admin, university-admin, faculty-admin, professor-admin, professor, user)`);
+    console.log(`   - Usuarios: ${users.length} (todos los roles en ambas universidades)`);
     console.log('='.repeat(80));
     console.log('\n📖 Estructura Jerárquica:');
     console.log('   Universidad → Facultad → Carrera → Materia (con año) → Comisión → Rúbrica (con tipo)');
     console.log('='.repeat(80));
-    console.log('\n🔐 Credenciales de acceso (V4 - ROLES JERÁRQUICOS):');
-    console.log('\n   🌍 SUPER-ADMIN (acceso global):');
+    console.log('\n🔐 Credenciales de acceso (V4.1 - 2 UNIVERSIDADES):');
+    console.log('\n   🌍 SUPER-ADMIN (acceso global - ambas universidades):');
     console.log('      superadmin / admin123');
-    console.log('\n   🏫 UNIVERSITY-ADMIN (gestiona UTN completa):');
-    console.log('      admin-utn / admin123');
-    console.log('\n   🏛️  FACULTY-ADMIN (⭐ NUEVO V4 - gestiona su facultad):');
-    console.log('      admin-frm  / admin123  (gestiona FRM)  [first_login=true]');
-    console.log('      admin-frsn / admin123  (gestiona FRSN) [first_login=true]');
-    console.log('\n   👨‍🏫 PROFESSOR-ADMIN (⭐ NUEVO V4 - Jefes de Cátedra):');
+
+    console.log('\n   --- UNIVERSIDAD UTN ---');
+    console.log('\n   🏫 UNIVERSITY-ADMIN:');
+    console.log('      admin-utn / admin123 (gestiona toda la UTN)');
+    console.log('\n   🏛️  FACULTY-ADMIN:');
+    console.log('      admin-frm  / admin123  (FRM)  [first_login=true]');
+    console.log('      admin-frsn / admin123  (FRSN) [first_login=true]');
+    console.log('\n   👨‍🏫 PROFESSOR-ADMIN (Jefes de Cátedra):');
     console.log('      jefe-prog1-frm  / admin123  (Programación 1 FRM)    [first_login=true]');
     console.log('      jefe-prog2-frm  / admin123  (Programación 2 FRM)    [first_login=true]');
     console.log('      jefe-multi-frsn / admin123  (3 materias FRSN)       [first_login=true]');
-    console.log('\n   👨‍🏫 PROFESSORS (asignados a comisiones):');
+    console.log('\n   👨‍🏫 PROFESSORS:');
     console.log('      prof-garcia   / prof123  (Prog 1 FRM)');
     console.log('      prof-lopez    / prof123  (Prog 2 FRM)');
     console.log('      prof-martinez / prof123  (Diseño FRM)');
-    console.log('\n   👤 USER (solo corrección):');
-    console.log('      usuario / usuario123');
+    console.log('\n   👤 USER:');
+    console.log('      usuario / usuario123 (UTN)');
+
+    console.log('\n   --- UNIVERSIDAD UBA ---');
+    console.log('\n   🏫 UNIVERSITY-ADMIN:');
+    console.log('      admin-uba / admin123 (gestiona toda la UBA)');
+    console.log('\n   🏛️  FACULTY-ADMIN:');
+    console.log('      admin-fiuba / admin123 (FIUBA) [first_login=true]');
+    console.log('      admin-fcen  / admin123 (FCEyN) [first_login=true]');
+    console.log('\n   👨‍🏫 PROFESSOR-ADMIN (Jefes de Cátedra):');
+    console.log('      jefe-algo1-fiuba / admin123 (Algoritmos I FIUBA)  [first_login=true]');
+    console.log('      jefe-multi-fcen  / admin123 (2 materias FCEyN)    [first_login=true]');
+    console.log('\n   👨‍🏫 PROFESSORS:');
+    console.log('      prof-rodriguez / prof123 (Algoritmos I y II FIUBA)');
+    console.log('      prof-fernandez / prof123 (Bases de Datos FCEyN)');
+    console.log('\n   👤 USER:');
+    console.log('      usuario-uba / usuario123 (UBA)');
+
     console.log('\n   ⚠️  NOTA: Usuarios con first_login=true DEBEN cambiar contraseña en primer acceso');
     console.log('='.repeat(80));
   } catch (error) {
