@@ -130,7 +130,7 @@ const startServer = async () => {
     await connectDB();
 
     // Iniciar servidor
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log('');
       console.log('='.repeat(60));
       console.log('🚀 Servidor iniciado correctamente');
@@ -154,6 +154,10 @@ const startServer = async () => {
       console.log('='.repeat(60));
       console.log('');
     });
+
+    // Aumentar timeout del servidor a 30 minutos (para batch uploads)
+    server.timeout = 1800000; // 30 minutos
+    console.log('⏱️  Timeout del servidor: 30 minutos');
   } catch (error) {
     console.error('❌ Error al iniciar servidor:', error);
     process.exit(1);

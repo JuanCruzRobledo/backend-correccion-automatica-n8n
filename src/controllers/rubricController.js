@@ -305,13 +305,28 @@ export const createRubric = async (req, res) => {
     // Usamos el rubric_id como submit_id para crear la carpeta
     const { createSubmissionFolder } = await import('../services/driveService.js');
     try {
+      console.log(`📁 Intentando crear carpeta en Drive para rúbrica: ${rubric_id}`);
       const driveResponse = await createSubmissionFolder(rubric_id, commission_id, course_id, career_id, faculty_id, university_id);
+
+      console.log(`📁 Respuesta de createSubmissionFolder:`, driveResponse);
 
       // Si la carpeta se creó exitosamente, guardar el folder_id
       if (driveResponse.success && driveResponse.folder_id) {
         rubric.drive_folder_id = driveResponse.folder_id;
+
+        // Guardar IDs del spreadsheet (agregado en FASE 4)
+        if (driveResponse.spreadsheet_id) {
+          rubric.spreadsheet_file_id = driveResponse.spreadsheet_id;
+          rubric.spreadsheet_file_url = driveResponse.spreadsheet_url;
+          console.log(`✅ Spreadsheet creado: ${driveResponse.spreadsheet_id}`);
+        } else {
+          console.warn('⚠️ El workflow no devolvió spreadsheet_id (verifica FASE 1)');
+        }
+
         await rubric.save();
         console.log(`✅ folder_id guardado en rúbrica: ${driveResponse.folder_id}`);
+      } else {
+        console.warn(`⚠️ No se pudo crear carpeta en Drive. Respuesta:`, driveResponse);
       }
     } catch (err) {
       console.error('⚠️ Error al crear carpeta de submission en Drive:', err);
@@ -475,13 +490,28 @@ export const createRubricFromPDF = async (req, res) => {
     // Usamos el rubric_id como submit_id para crear la carpeta
     const { createSubmissionFolder } = await import('../services/driveService.js');
     try {
+      console.log(`📁 Intentando crear carpeta en Drive para rúbrica: ${rubric_id}`);
       const driveResponse = await createSubmissionFolder(rubric_id, commission_id, course_id, career_id, faculty_id, university_id);
+
+      console.log(`📁 Respuesta de createSubmissionFolder:`, driveResponse);
 
       // Si la carpeta se creó exitosamente, guardar el folder_id
       if (driveResponse.success && driveResponse.folder_id) {
         rubric.drive_folder_id = driveResponse.folder_id;
+
+        // Guardar IDs del spreadsheet (agregado en FASE 4)
+        if (driveResponse.spreadsheet_id) {
+          rubric.spreadsheet_file_id = driveResponse.spreadsheet_id;
+          rubric.spreadsheet_file_url = driveResponse.spreadsheet_url;
+          console.log(`✅ Spreadsheet creado: ${driveResponse.spreadsheet_id}`);
+        } else {
+          console.warn('⚠️ El workflow no devolvió spreadsheet_id (verifica FASE 1)');
+        }
+
         await rubric.save();
         console.log(`✅ folder_id guardado en rúbrica: ${driveResponse.folder_id}`);
+      } else {
+        console.warn(`⚠️ No se pudo crear carpeta en Drive. Respuesta:`, driveResponse);
       }
     } catch (err) {
       console.error('⚠️ Error al crear carpeta de submission en Drive:', err);
@@ -625,6 +655,82 @@ export const deleteRubric = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al eliminar rúbrica',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Reparar rúbricas sin drive_folder_id - POST /api/rubrics/:id/fix-drive-folder
+ * Crea la carpeta en Drive y actualiza el drive_folder_id
+ * @access Professor, Admin, Super-admin
+ */
+export const fixRubricDriveFolder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const rubric = await Rubric.findById(id);
+
+    if (!rubric) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rúbrica no encontrada',
+      });
+    }
+
+    // Verificar si ya tiene drive_folder_id
+    if (rubric.drive_folder_id && rubric.drive_folder_id !== 'null') {
+      return res.status(400).json({
+        success: false,
+        message: 'La rúbrica ya tiene drive_folder_id configurado',
+        data: { drive_folder_id: rubric.drive_folder_id },
+      });
+    }
+
+    // Crear carpeta de submission en Google Drive
+    const { createSubmissionFolder } = await import('../services/driveService.js');
+
+    console.log(`🔧 Reparando drive_folder_id para rúbrica: ${rubric.rubric_id}`);
+
+    const driveResponse = await createSubmissionFolder(
+      rubric.rubric_id,
+      rubric.commission_id,
+      rubric.course_id,
+      rubric.career_id,
+      rubric.faculty_id,
+      rubric.university_id
+    );
+
+    console.log(`📁 Respuesta de createSubmissionFolder:`, driveResponse);
+
+    if (!driveResponse.success || !driveResponse.folder_id) {
+      return res.status(500).json({
+        success: false,
+        message: 'No se pudo crear la carpeta en Drive',
+        error: driveResponse.message || 'Error desconocido',
+      });
+    }
+
+    // Actualizar rúbrica con el folder_id
+    rubric.drive_folder_id = driveResponse.folder_id;
+    await rubric.save();
+
+    console.log(`✅ drive_folder_id reparado: ${driveResponse.folder_id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Carpeta de Drive creada y rúbrica actualizada exitosamente',
+      data: {
+        rubric_id: rubric.rubric_id,
+        name: rubric.name,
+        drive_folder_id: rubric.drive_folder_id,
+      },
+    });
+  } catch (error) {
+    console.error('Error al reparar drive_folder_id:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al reparar drive_folder_id',
       error: error.message,
     });
   }

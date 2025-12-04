@@ -85,6 +85,11 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    student_folder_id: {
+      type: String,
+      default: null,
+      comment: 'ID de la carpeta del alumno dentro de la carpeta de la rúbrica (alumno-{nombre})',
+    },
 
     // Metadata
     uploaded_by: {
@@ -137,6 +142,56 @@ const submissionSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.Mixed,
         default: null,
       },
+      // Campos extendidos para PDF de devolución
+      criteria: [
+        {
+          id: {
+            type: String,
+            default: null,
+          },
+          name: {
+            type: String,
+            default: null,
+          },
+          score: {
+            type: Number,
+            default: null,
+          },
+          max_score: {
+            type: Number,
+            default: null,
+          },
+          status: {
+            type: String,
+            enum: ['ok', 'error', 'warning'],
+            default: 'ok',
+          },
+          feedback: {
+            type: String,
+            default: null,
+          },
+        },
+      ],
+      strengths_list: {
+        type: [String],
+        default: [],
+      },
+      recommendations_list: {
+        type: [String],
+        default: [],
+      },
+      general_feedback: {
+        type: String,
+        default: null,
+      },
+    },
+
+    // Referencia al hash del proyecto (para detección de similitud)
+    project_hash_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProjectHash',
+      default: null,
+      index: true,
     },
 
     deleted: {

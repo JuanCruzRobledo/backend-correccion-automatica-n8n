@@ -98,6 +98,19 @@ const rubricSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // ID del archivo entregas.xlsx en Google Drive (agregado para FASE 1)
+    spreadsheet_file_id: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
+    // URL directa al archivo entregas.xlsx (agregado para FASE 1)
+    spreadsheet_file_url: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     deleted: {
       type: Boolean,
       default: false,

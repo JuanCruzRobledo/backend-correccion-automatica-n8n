@@ -10,7 +10,9 @@ import {
   createSubmission,
   updateSubmission,
   deleteSubmission,
+  createBatchSubmissions,
 } from '../controllers/submissionController.js';
+import { downloadIndividualDevolutionPdf } from '../controllers/devolutionController.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRoles, checkProfessorAccess } from '../middleware/multiTenant.js';
 
@@ -30,14 +32,17 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB máximo
+    fileSize: 500 * 1024 * 1024, // 500MB máximo (para batch)
   },
   fileFilter: (req, file, cb) => {
-    // Aceptar solo archivos .txt
-    if (file.mimetype === 'text/plain' || file.originalname.endsWith('.txt')) {
+    // Aceptar archivos .txt y .zip
+    const isTxt = file.mimetype === 'text/plain' || file.originalname.endsWith('.txt');
+    const isZip = file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed' || file.originalname.endsWith('.zip');
+
+    if (isTxt || isZip) {
       cb(null, true);
     } else {
-      cb(new Error('Solo se permiten archivos .txt'));
+      cb(new Error('Solo se permiten archivos .txt o .zip'));
     }
   },
 });
@@ -71,7 +76,7 @@ router.get(
  * @route   POST /api/submissions
  * @desc    Crear nueva submission (subir entrega de alumno)
  * @access  Private (professor, university-admin, super-admin)
- * @body    multipart/form-data: file, student_name, student_id, rubric_id, commission_id
+ * @body    multipart/form-data: file, student_name, student_id, rubric_id, commission_id, mode?, customExtensions?, includeTests?, forceOverwrite?
  */
 router.post(
   '/',
@@ -80,6 +85,21 @@ router.post(
   upload.single('file'),
   checkProfessorAccess,
   createSubmission
+);
+
+/**
+ * @route   POST /api/submissions/batch
+ * @desc    Crear múltiples submissions (batch de entregas con auto-consolidación)
+ * @access  Private (professor, university-admin, super-admin)
+ * @body    multipart/form-data: file (ZIP con estructura entregas/), rubric_id, commission_id, mode, customExtensions?, includeTests?, forceOverwrite?, runSimilarityAnalysis?
+ */
+router.post(
+  '/batch',
+  authenticate,
+  requireRoles('professor', 'university-admin', 'super-admin'),
+  upload.single('file'),
+  checkProfessorAccess,
+  createBatchSubmissions
 );
 
 /**
@@ -105,6 +125,18 @@ router.delete(
   authenticate,
   requireRoles('professor', 'university-admin', 'super-admin'),
   deleteSubmission
+);
+
+/**
+ * @route   GET /api/submissions/:id/devolution-pdf
+ * @desc    Descargar PDF de devolución individual para un estudiante
+ * @access  Private (professor, university-admin, super-admin)
+ */
+router.get(
+  '/:id/devolution-pdf',
+  authenticate,
+  requireRoles('professor', 'university-admin', 'super-admin'),
+  downloadIndividualDevolutionPdf
 );
 
 export default router;

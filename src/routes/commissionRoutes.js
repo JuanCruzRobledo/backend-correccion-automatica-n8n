@@ -18,6 +18,11 @@ import {
 } from '../controllers/commissionController.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 import { requireRoles } from '../middleware/multiTenant.js';
+import {
+  getSimilarityAnalysis,
+  downloadSimilarityReportPdf,
+} from '../controllers/similarityController.js';
+import { downloadBatchDevolutionPdfs } from '../controllers/devolutionController.js';
 
 const router = express.Router();
 
@@ -114,6 +119,40 @@ router.delete(
   authenticate,
   requireRoles('super-admin', 'university-admin'),
   removeProfessor
+);
+
+/**
+ * @route   GET /api/commissions/:commissionId/rubrics/:rubricId/similarity
+ * @desc    Obtener análisis de similitud en JSON
+ * @access  Private (professor)
+ */
+router.get(
+  '/:commissionId/rubrics/:rubricId/similarity',
+  authenticate,
+  getSimilarityAnalysis
+);
+
+/**
+ * @route   GET /api/commissions/:commissionId/rubrics/:rubricId/similarity/pdf
+ * @desc    Descargar reporte de similitud en PDF
+ * @access  Private (professor)
+ */
+router.get(
+  '/:commissionId/rubrics/:rubricId/similarity/pdf',
+  authenticate,
+  downloadSimilarityReportPdf
+);
+
+/**
+ * @route   POST /api/commissions/:commissionId/rubrics/:rubricId/generate-devolution-pdfs
+ * @desc    Generar y descargar ZIP con PDFs de devolución para todos los estudiantes
+ * @access  Private (professor, university-admin, super-admin)
+ */
+router.post(
+  '/:commissionId/rubrics/:rubricId/generate-devolution-pdfs',
+  authenticate,
+  requireRoles('professor', 'university-admin', 'super-admin'),
+  downloadBatchDevolutionPdfs
 );
 
 export default router;

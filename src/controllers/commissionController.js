@@ -612,22 +612,33 @@ export const removeProfessor = async (req, res) => {
 };
 
 /**
- * Obtener comisiones asignadas al profesor autenticado
+ * Obtener comisiones asignadas al profesor autenticado o todas las comisiones (super-admin)
  * @route GET /api/commissions/my-commissions
- * @access Professor
+ * @access Professor, Professor-Admin, Super-Admin
  */
 export const getMyCommissions = async (req, res) => {
   try {
-    // Verificar que el usuario sea profesor
-    if (req.user.role !== 'professor') {
+    let commissions;
+
+    // Si es super-admin, devolver TODAS las comisiones de todas las universidades
+    if (req.user.role === 'super-admin') {
+      commissions = await Commission.find({ deleted: false })
+        .sort({ year: -1, commission_id: 1 });
+
+      // Los campos university_id, faculty_id, career_id, course_id son strings, no referencias
+      // Por lo tanto no necesitamos populate, solo devolver las comisiones tal cual
+    }
+    // Si es professor o professor-admin, solo sus comisiones asignadas
+    else if (req.user.role === 'professor' || req.user.role === 'professor-admin') {
+      commissions = await Commission.findByProfessor(req.user.userId);
+    }
+    // Otros roles no tienen acceso
+    else {
       return res.status(403).json({
         success: false,
-        message: 'Solo los profesores pueden acceder a esta ruta',
+        message: 'Solo los profesores y super-admins pueden acceder a esta ruta',
       });
     }
-
-    // Buscar comisiones donde el profesor está asignado
-    const commissions = await Commission.findByProfessor(req.user.userId);
 
     res.status(200).json({
       success: true,
@@ -635,10 +646,10 @@ export const getMyCommissions = async (req, res) => {
       data: commissions,
     });
   } catch (error) {
-    console.error('Error al obtener comisiones del profesor:', error);
+    console.error('Error al obtener comisiones:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al obtener comisiones del profesor',
+      message: 'Error al obtener comisiones',
       error: error.message,
     });
   }

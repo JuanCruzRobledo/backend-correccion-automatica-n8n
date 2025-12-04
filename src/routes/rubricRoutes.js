@@ -11,6 +11,7 @@ import {
   createRubricFromPDF,
   updateRubric,
   deleteRubric,
+  fixRubricDriveFolder,
 } from '../controllers/rubricController.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 
@@ -83,5 +84,12 @@ router.put('/:id', authenticate, requireAdmin, updateRubric);
  * @access  Private (solo admin)
  */
 router.delete('/:id', authenticate, requireAdmin, deleteRubric);
+
+/**
+ * @route   POST /api/rubrics/:id/fix-drive-folder
+ * @desc    Reparar rúbricas sin drive_folder_id (crea carpeta en Drive)
+ * @access  Private (professor, admin, super-admin)
+ */
+router.post('/:id/fix-drive-folder', authenticate, fixRubricDriveFolder);
 
 export default router;

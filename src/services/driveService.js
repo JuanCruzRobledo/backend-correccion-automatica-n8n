@@ -247,14 +247,64 @@ export const createSubmissionFolder = async (submit_id, commission_id, course_id
 };
 
 /**
+ * Crear carpeta de alumno en Google Drive
+ * @param {String} studentName - Nombre del alumno (ej: "juan-perez")
+ * @param {String} rubricDriveFolderId - ID de la carpeta de rúbrica en Drive
+ * @returns {Promise<Object>} { success, folder_id, folder_name }
+ */
+export const createStudentFolder = async (studentName, rubricDriveFolderId) => {
+  try {
+    const webhookUrl = process.env.N8N_CREATE_STUDENT_FOLDER_WEBHOOK;
+
+    if (!webhookUrl) {
+      console.warn('⚠️ N8N_CREATE_STUDENT_FOLDER_WEBHOOK no configurado, usando método alternativo');
+      // Si no hay webhook, intentar crear carpeta directamente con el webhook de upload
+      return { success: false, message: 'Webhook no configurado' };
+    }
+
+    console.log(`📁 Creando carpeta de alumno: ${studentName} en ${rubricDriveFolderId}`);
+
+    const payload = {
+      folderName: `alumno-${studentName}`,
+      parentFolderId: rubricDriveFolderId,
+    };
+
+    const response = await axios.post(webhookUrl, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000,
+    });
+
+    if (!response.data || !response.data.success) {
+      throw new Error('No se pudo crear la carpeta del alumno');
+    }
+
+    console.log(`✅ Carpeta de alumno creada: ${response.data.folder_id}`);
+
+    return {
+      success: true,
+      folder_id: response.data.folder_id,
+      folder_name: response.data.folder_name,
+    };
+  } catch (error) {
+    console.error(`❌ Error al crear carpeta de alumno "${studentName}":`, error.message);
+    return {
+      success: false,
+      message: error.response?.data?.message || error.message,
+    };
+  }
+};
+
+/**
  * Subir archivo a Google Drive (para entregas de alumnos)
  * Usa webhook de n8n que recibe el archivo como texto plano en JSON
  * @param {String} filePath - Ruta del archivo temporal en el servidor
- * @param {String} fileName - Nombre con el que se guardará en Drive (ej: "alumno-juan-perez.txt")
- * @param {String} rubricDriveFolderId - ID de la carpeta de rúbrica en Drive
+ * @param {String} fileName - Nombre con el que se guardará en Drive (siempre "entrega.txt")
+ * @param {String} folderId - ID de la carpeta destino (carpeta del alumno)
  * @returns {Promise<Object>} { success, drive_file_id, drive_file_url }
  */
-export const uploadFileToDrive = async (filePath, fileName, rubricDriveFolderId) => {
+export const uploadFileToDrive = async (filePath, fileName, folderId) => {
   try {
     const webhookUrl = process.env.N8N_UPLOAD_FILE_TO_DRIVE_WEBHOOK;
 
@@ -263,14 +313,14 @@ export const uploadFileToDrive = async (filePath, fileName, rubricDriveFolderId)
     }
 
     console.log(`📤 Subiendo archivo a Drive: ${fileName}`);
-    console.log(`📁 Carpeta destino (folderId): ${rubricDriveFolderId}`);
+    console.log(`📁 Carpeta destino (folderId): ${folderId}`);
 
     // Leer el contenido del archivo como texto (es un .txt)
     const fileContent = await fs.promises.readFile(filePath, 'utf-8');
 
     const payload = {
       fileName,
-      folderId: rubricDriveFolderId,
+      folderId: folderId,
       fileContent, // Contenido del archivo como string
     };
 
