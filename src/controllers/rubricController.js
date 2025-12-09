@@ -626,6 +626,72 @@ export const updateRubric = async (req, res) => {
   }
 };
 
+const parseSpreadsheetId = (value) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const urlMatch = trimmed.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (urlMatch && urlMatch[1]) {
+    return urlMatch[1];
+  }
+  return trimmed.split('?')[0];
+};
+
+/**
+ * Actualizar ID/URL de spreadsheet - PUT /api/rubrics/:rubricId/spreadsheet
+ * @route PUT /api/rubrics/:rubricId/spreadsheet
+ * @access Private (admin, university-admin, professor)
+ */
+export const updateRubricSpreadsheet = async (req, res) => {
+  try {
+    const { rubricId } = req.params;
+    const { spreadsheet_file_id, spreadsheet_file_url } = req.body;
+
+    if (!spreadsheet_file_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'spreadsheet_file_id es requerido',
+      });
+    }
+
+    const parsedId = parseSpreadsheetId(spreadsheet_file_id);
+    if (!parsedId || !/^[a-zA-Z0-9-_]{10,}$/.test(parsedId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'spreadsheet_file_id no tiene un formato válido',
+      });
+    }
+
+    const rubric = await Rubric.findOne({ rubric_id: rubricId, deleted: false });
+    if (!rubric) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rúbrica no encontrada',
+      });
+    }
+
+    rubric.spreadsheet_file_id = parsedId;
+    rubric.spreadsheet_file_url = spreadsheet_file_url || rubric.spreadsheet_file_url || spreadsheet_file_id;
+    await rubric.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Spreadsheet configurado correctamente',
+      data: {
+        rubric_id: rubric.rubric_id,
+        spreadsheet_file_id: rubric.spreadsheet_file_id,
+        spreadsheet_file_url: rubric.spreadsheet_file_url,
+      },
+    });
+  } catch (error) {
+    console.error('Error al actualizar spreadsheet de rúbrica:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar spreadsheet',
+      error: error.message,
+    });
+  }
+};
+
 /**
  * Eliminar rúbrica (baja lógica) - DELETE /api/rubrics/:id
  * @route DELETE /api/rubrics/:id

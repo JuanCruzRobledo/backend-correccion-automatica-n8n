@@ -2,11 +2,9 @@
  * Similarity Controller
  * Controlador para análisis de similitud y generación de reportes
  */
-import ProjectHash from '../models/ProjectHash.js';
-import SimilarityDetectorService from '../services/similarityDetectorService.js';
-import SimilarityReportPdfService from '../services/similarityReportPdfService.js';
 import Commission from '../models/Commission.js';
 import Rubric from '../models/Rubric.js';
+import NodeSimilarityReportService from '../services/nodeSimilarityReportService.js';
 
 /**
  * GET /api/commissions/:commissionId/rubrics/:rubricId/similarity
@@ -26,18 +24,8 @@ export const getSimilarityAnalysis = async (req, res) => {
 
     console.log(`📊 Analizando similitud: ${commissionId} / ${rubricId}`);
 
-    // Obtener ProjectHashes
-    const projectHashes = await ProjectHash.findByCommissionAndRubric(commissionId, rubricId);
-
-    if (projectHashes.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No se encontraron proyectos para esta comisión y rúbrica',
-      });
-    }
-
-    // Analizar similitudes
-    const similarity = SimilarityDetectorService.detectSimilarities(projectHashes);
+    // Ejecutar generador en Node (basado en generate_pdf_report.py)
+    const report = await NodeSimilarityReportService.generateReport(commissionId, rubricId);
 
     // Obtener nombres de comisión y rúbrica (opcional, para mejor contexto)
     let commissionName = commissionId;
@@ -45,10 +33,10 @@ export const getSimilarityAnalysis = async (req, res) => {
 
     try {
       const commission = await Commission.findOne({ commission_id: commissionId });
-      if (commission) commissionName = commission.commission_name;
+      if (commission) commissionName = commission.name || commission.commission_name;
 
       const rubric = await Rubric.findOne({ rubric_id: rubricId });
-      if (rubric) rubricName = rubric.rubric_name;
+      if (rubric) rubricName = rubric.name || rubric.rubric_name;
     } catch (err) {
       // Si falla, usar IDs como fallback
       console.warn('No se pudieron obtener nombres de comisión/rúbrica:', err.message);
@@ -57,7 +45,7 @@ export const getSimilarityAnalysis = async (req, res) => {
     // Responder con análisis
     res.status(200).json({
       success: true,
-      generated_at: new Date().toISOString(),
+      generated_at: report.generado,
       commission: {
         id: commissionId,
         name: commissionName,
@@ -66,15 +54,16 @@ export const getSimilarityAnalysis = async (req, res) => {
         id: rubricId,
         name: rubricName,
       },
-      total_projects: projectHashes.length,
-      identical_groups: similarity.identicalGroups,
-      partial_copies: similarity.partialCopies,
-      most_copied_files: similarity.mostCopiedFiles,
+      total_projects: report.total_proyectos_analizados,
+      identical_groups: report.proyectos_identicos,
+      partial_copies: report.copias_parciales,
+      most_copied_files: report.archivos_mas_copiados,
       summary: {
-        total_identical_groups: similarity.identicalGroups.length,
-        total_partial_copies: similarity.partialCopies.length,
-        total_most_copied_files: similarity.mostCopiedFiles.length,
+        total_identical_groups: report.total_grupos_identicos,
+        total_partial_copies: report.total_copias_parciales,
+        total_most_copied_files: report.archivos_mas_copiados?.length || 0,
       },
+      report_raw: report,
     });
 
     console.log('✅ Análisis de similitud completado');
@@ -112,21 +101,16 @@ export const downloadSimilarityReportPdf = async (req, res) => {
 
     try {
       const commission = await Commission.findOne({ commission_id: commissionId });
-      if (commission) commissionName = commission.commission_name;
+      if (commission) commissionName = commission.name || commission.commission_name;
 
       const rubric = await Rubric.findOne({ rubric_id: rubricId });
-      if (rubric) rubricName = rubric.rubric_name;
+      if (rubric) rubricName = rubric.name || rubric.rubric_name;
     } catch (err) {
       console.warn('No se pudieron obtener nombres de comisión/rúbrica:', err.message);
     }
 
-    // Generar PDF
-    const pdfBuffer = await SimilarityReportPdfService.generateSimilarityReportPdf(
-      commissionId,
-      rubricId,
-      commissionName,
-      rubricName
-    );
+    // Generar PDF mediante implementación nativa Node (basado en generate_pdf_report.py)
+    const { buffer } = await NodeSimilarityReportService.generateReportPdf(commissionId, rubricId);
 
     // Configurar headers para descarga
     const timestamp = Date.now();
@@ -134,12 +118,12 @@ export const downloadSimilarityReportPdf = async (req, res) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Content-Length', buffer.length);
 
     // Enviar PDF
-    res.send(pdfBuffer);
+    res.send(buffer);
 
-    console.log(`✅ PDF generado: ${fileName} (${(pdfBuffer.length / 1024).toFixed(2)} KB)`);
+    console.log(`✅ PDF generado: ${fileName} (${(buffer.length / 1024).toFixed(2)} KB)`);
   } catch (error) {
     console.error('❌ Error generando PDF de similitud:', error);
     res.status(500).json({

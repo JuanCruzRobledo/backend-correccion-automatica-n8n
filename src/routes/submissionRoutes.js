@@ -4,6 +4,7 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import {
   getAllSubmissions,
   getSubmissionById,
@@ -18,10 +19,16 @@ import { requireRoles, checkProfessorAccess } from '../middleware/multiTenant.js
 
 const router = express.Router();
 
+// Asegurar carpeta de uploads temporal
+const uploadTempDir = path.resolve('uploads/temp');
+if (!fs.existsSync(uploadTempDir)) {
+  fs.mkdirSync(uploadTempDir, { recursive: true });
+}
+
 // Configurar multer para upload de archivos .txt
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/temp/');
+    cb(null, uploadTempDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);

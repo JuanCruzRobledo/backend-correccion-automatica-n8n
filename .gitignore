@@ -19,3 +19,7 @@ Thumbs.db
 
 # Uploads (archivos temporales)
 uploads/
+
+# Python outputs
+scripts/python/**/output/
+**/__pycache__/

@@ -22,7 +22,10 @@ import {
   getSimilarityAnalysis,
   downloadSimilarityReportPdf,
 } from '../controllers/similarityController.js';
-import { downloadBatchDevolutionPdfs } from '../controllers/devolutionController.js';
+import {
+  downloadBatchDevolutionPdfs,
+  downloadStudentDevolutionPdf,
+} from '../controllers/devolutionController.js';
 
 const router = express.Router();
 
@@ -141,6 +144,18 @@ router.get(
   '/:commissionId/rubrics/:rubricId/similarity/pdf',
   authenticate,
   downloadSimilarityReportPdf
+);
+
+/**
+ * @route   GET /api/commissions/:commissionId/rubrics/:rubricId/students/:studentName/devolution-pdf
+ * @desc    Descargar PDF individual de devolución usando planilla de Drive
+ * @access  Private (professor, university-admin, super-admin)
+ */
+router.get(
+  '/:commissionId/rubrics/:rubricId/students/:studentName/devolution-pdf',
+  authenticate,
+  requireRoles('professor', 'university-admin', 'super-admin'),
+  downloadStudentDevolutionPdf
 );
 
 /**

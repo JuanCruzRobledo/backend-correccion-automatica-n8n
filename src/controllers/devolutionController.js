@@ -6,6 +6,32 @@ import DevolutionPdfService from '../services/devolutionPdfService.js';
 import Submission from '../models/Submission.js';
 import Commission from '../models/Commission.js';
 import Rubric from '../models/Rubric.js';
+import NodeDevolutionService from '../services/nodeDevolutionService.js';
+
+const getRubricWithSpreadsheet = async (rubricId) => {
+  const rubric = await Rubric.findOne({ rubric_id: rubricId });
+  if (!rubric) {
+    const error = new Error('Rúbrica no encontrada');
+    error.statusCode = 404;
+    throw error;
+  }
+  if (!rubric.spreadsheet_file_id) {
+    const error = new Error('La rúbrica no tiene spreadsheet_file_id configurado');
+    error.statusCode = 400;
+    throw error;
+  }
+  return rubric;
+};
+
+const resolveSheetId = (rubric) => {
+  if (rubric.sheet_id) return rubric.sheet_id;
+  if (rubric.rubric_json?.sheet_id) return rubric.rubric_json.sheet_id;
+  if (rubric.spreadsheet_file_url) {
+    const match = rubric.spreadsheet_file_url.match(/gid=([0-9]+)/);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+};
 
 /**
  * GET /api/submissions/:submissionId/devolution-pdf
@@ -41,10 +67,10 @@ export const downloadIndividualDevolutionPdf = async (req, res) => {
 
     try {
       const commission = await Commission.findOne({ commission_id: submission.commission_id });
-      if (commission) commissionName = commission.commission_name;
+      if (commission) commissionName = commission.name || commission.commission_name;
 
       const rubric = await Rubric.findOne({ rubric_id: submission.rubric_id });
-      if (rubric) rubricName = rubric.rubric_name;
+      if (rubric) rubricName = rubric.name || rubric.rubric_name;
     } catch (err) {
       console.warn('No se pudieron obtener nombres de comisión/rúbrica:', err.message);
     }
@@ -96,10 +122,21 @@ export const downloadBatchDevolutionPdfs = async (req, res) => {
 
     console.log(`📦 Generando batch de PDFs: ${commissionId} / ${rubricId}`);
 
-    // Generar ZIP con todos los PDFs
-    const zipBuffer = await DevolutionPdfService.generateBatchDevolutionPdfs(
+    const rubric = await getRubricWithSpreadsheet(rubricId);
+    if (rubric.commission_id !== commissionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'La rúbrica no pertenece a la comisión indicada',
+      });
+    }
+
+    // Generar ZIP con todos los PDFs usando Python + n8n
+    const { buffer } = await NodeDevolutionService.generateBatchPdfs(
       commissionId,
-      rubricId
+      rubricId,
+      rubric.spreadsheet_file_id,
+      resolveSheetId(rubric),
+      rubric.drive_folder_id
     );
 
     // Configurar headers para descarga
@@ -108,19 +145,80 @@ export const downloadBatchDevolutionPdfs = async (req, res) => {
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    res.setHeader('Content-Length', zipBuffer.length);
+    res.setHeader('Content-Length', buffer.length);
 
     // Enviar ZIP
-    res.send(zipBuffer);
+    res.send(buffer);
 
     console.log(
-      `✅ ZIP generado: ${fileName} (${(zipBuffer.length / 1024 / 1024).toFixed(2)} MB)`
+      `✅ ZIP generado: ${fileName} (${(buffer.length / 1024 / 1024).toFixed(2)} MB)`
     );
   } catch (error) {
     console.error('❌ Error generando batch de PDFs:', error);
-    res.status(500).json({
+    const statusCode =
+      Number.isInteger(error.statusCode) && error.statusCode >= 400 && error.statusCode < 600
+        ? error.statusCode
+        : 500;
+    res.status(statusCode).json({
       success: false,
       message: error.message || 'Error al generar el ZIP de PDFs',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
+  }
+};
+
+/**
+ * GET /api/commissions/:commissionId/rubrics/:rubricId/students/:studentName/devolution-pdf
+ * Genera y descarga PDF de devolución individual (usando n8n + Python)
+ */
+export const downloadStudentDevolutionPdf = async (req, res) => {
+  try {
+    const { commissionId, rubricId, studentName } = req.params;
+
+    if (!studentName) {
+      return res.status(400).json({
+        success: false,
+        message: 'studentName es requerido',
+      });
+    }
+
+    console.log(`📄 Generando PDF individual via n8n para: ${studentName}`);
+
+    const rubric = await getRubricWithSpreadsheet(rubricId);
+    if (rubric.commission_id !== commissionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'La rúbrica no pertenece a la comisión indicada',
+      });
+    }
+
+    const { buffer } = await NodeDevolutionService.generateIndividualPdf(
+      commissionId,
+      rubricId,
+      studentName,
+      rubric.spreadsheet_file_id,
+      resolveSheetId(rubric),
+      rubric.drive_folder_id
+    );
+
+    const timestamp = Date.now();
+    const fileName = `${studentName.replace(/\s+/g, '_')}_devolucion_${timestamp}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+
+    console.log(`✅ PDF individual generado: ${fileName}`);
+  } catch (error) {
+    console.error('❌ Error generando PDF individual via n8n:', error);
+    const statusCode =
+      Number.isInteger(error.statusCode) && error.statusCode >= 400 && error.statusCode < 600
+        ? error.statusCode
+        : 500;
+    res.status(statusCode).json({
+      success: false,
+      message: error.message || 'Error al generar el PDF',
       error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
@@ -166,5 +264,6 @@ export const updateCorrectionsFromExcel = async (req, res) => {
 export default {
   downloadIndividualDevolutionPdf,
   downloadBatchDevolutionPdfs,
+  downloadStudentDevolutionPdf,
   updateCorrectionsFromExcel,
 };

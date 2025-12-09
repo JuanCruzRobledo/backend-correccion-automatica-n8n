@@ -36,6 +36,7 @@ Backend API REST para el sistema de corrección automática con gestión complet
 - **Node.js** >= 18.0.0
 - **npm** >= 9.0.0
 - **MongoDB** >= 6.0 (local o MongoDB Atlas)
+- **Python** >= 3.10 (para scripts de similitud y devoluciones)
 
 ---
 
@@ -80,6 +81,15 @@ JWT_EXPIRES_IN=7d
 N8N_RUBRIC_WEBHOOK_URL=https://tu-servidor.n8n.example/webhook/rubrica
 N8N_GRADING_WEBHOOK_URL=https://tu-servidor.n8n.example/webhook/corregir
 N8N_SPREADSHEET_WEBHOOK_URL=https://tu-servidor.n8n.example/webhook/spreadsheet
+N8N_WEBHOOK_GET_CORRECTIONS=http://localhost:5678/webhook/get-student-corrections
+
+# Seed / Google Drive
+SEED_CREATE_DRIVE_FOLDERS=true
+N8N_CREATE_UNIVERSITY_FOLDER_WEBHOOK=https://tu-servidor.n8n.example/webhook/create-university-folder
+N8N_CREATE_FACULTY_FOLDER_WEBHOOK=https://tu-servidor.n8n.example/webhook/create-faculty-folder
+N8N_CREATE_CAREER_FOLDER_WEBHOOK=https://tu-servidor.n8n.example/webhook/create-career-folder
+N8N_CREATE_COURSE_FOLDER_WEBHOOK=https://tu-servidor.n8n.example/webhook/create-course-folder
+N8N_CREATE_COMMISSION_FOLDER_WEBHOOK=https://tu-servidor.n8n.example/webhook/create-commission-folder
 
 # CORS Configuration
 CORS_ORIGIN=http://localhost:5173
@@ -122,19 +132,32 @@ npm start
 
 ---
 
+## 🐍 Scripts Python (similitud y devoluciones)
+
+- Scripts: `scripts/python/similarity/batch_consolidator.py` y `scripts/python/devolution/generar_pdfs.py`
+- Dependencias: `pip install -r scripts/python/similarity/requirements.txt` y `pip install -r scripts/python/devolution/requirements.txt`
+- Variables: usan `MONGODB_URI` y `N8N_WEBHOOK_GET_CORRECTIONS` del `.env`
+
+---
+
 ## 🌱 Migración de Datos
 
-El script de migración crea:
-- 4 universidades (UTN-FRM, UTN-FRSN, UTN-FRA, UTN-FRBA)
-- 17 cursos distribuidos por universidad
-- 5 rúbricas preestablecidas
-- 2 usuarios (admin + usuario de prueba)
+El script de migración simplificado crea:
+- 1 universidad (UTN)
+- 1 facultad (FRM)
+- 2 carreras (ISI y TUP)
+- 6 cursos (Programación 1, 2 y 3 por carrera)
+- 24 comisiones (4 por curso) y, si `SEED_CREATE_DRIVE_FOLDERS=true`, sus carpetas en Drive (Entregas y Rubricas)
+- Rúbrica base: TP Listas (Prog 1) y Parcial Prog 2
+- Usuarios de prueba: superadmin, admin UTN, admin FRM, 3 professor-admin, 3 professors y usuario regular
 
 ### Ejecutar migración
 
 ```bash
 npm run seed
 ```
+
+**Nota:** Con `SEED_CREATE_DRIVE_FOLDERS=true`, n8n debe estar corriendo y con los webhooks de carpetas activos antes de ejecutar el seed. Usa `SEED_CREATE_DRIVE_FOLDERS=false` para poblar solo MongoDB.
 
 ### Salida esperada
 

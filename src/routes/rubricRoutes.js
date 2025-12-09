@@ -4,6 +4,7 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import {
   getRubrics,
   getRubricById,
@@ -11,16 +12,24 @@ import {
   createRubricFromPDF,
   updateRubric,
   deleteRubric,
+  updateRubricSpreadsheet,
   fixRubricDriveFolder,
 } from '../controllers/rubricController.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
+import { requireRoles } from '../middleware/multiTenant.js';
 
 const router = express.Router();
+
+// Asegurar carpeta de uploads temporal
+const uploadTempDir = path.resolve('uploads/temp');
+if (!fs.existsSync(uploadTempDir)) {
+  fs.mkdirSync(uploadTempDir, { recursive: true });
+}
 
 // Configurar multer para upload de PDFs
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/temp/');
+    cb(null, uploadTempDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -77,6 +86,18 @@ router.post('/from-pdf', authenticate, requireAdmin, upload.single('pdf'), creat
  * @access  Private (solo admin)
  */
 router.put('/:id', authenticate, requireAdmin, updateRubric);
+
+/**
+ * @route   PUT /api/rubrics/:rubricId/spreadsheet
+ * @desc    Configurar spreadsheet_file_id/URL para una rúbrica
+ * @access  Private (professor, university-admin, super-admin)
+ */
+router.put(
+  '/:rubricId/spreadsheet',
+  authenticate,
+  requireRoles('professor', 'professor-admin', 'university-admin', 'super-admin', 'admin'),
+  updateRubricSpreadsheet
+);
 
 /**
  * @route   DELETE /api/rubrics/:id
