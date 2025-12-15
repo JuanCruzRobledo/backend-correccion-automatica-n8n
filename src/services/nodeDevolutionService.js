@@ -96,11 +96,11 @@ const parsearRecomendaciones = (texto) => {
 const criteriaColor = (estado) => {
   switch (estado) {
     case 'ok':
-      return '#2ecc71';
+      return '#059669';  // Verde (igual que Python)
     case 'error':
-      return '#e74c3c';
+      return '#dc2626';  // Rojo (igual que Python)
     case 'warning':
-      return '#f39c12';
+      return '#f59e0b';  // Naranja/Amarillo (igual que Python)
     default:
       return '#34495e';
   }
@@ -108,9 +108,17 @@ const criteriaColor = (estado) => {
 
 const buildPdf = (record, meta) =>
   new Promise((resolve, reject) => {
+    // Convertir mm a puntos (1mm = 2.834645669 puntos)
+    const mmToPt = (mm) => mm * 2.834645669;
+
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 40, bottom: 40, left: 40, right: 40 },
+      margins: {
+        top: mmToPt(15),
+        bottom: mmToPt(15),
+        left: mmToPt(15),
+        right: mmToPt(15)
+      },
       info: {
         Title: `Devolucion - ${record.alumno || record.student_name || ''}`,
         Author: 'Corrección Automática',
@@ -131,56 +139,115 @@ const buildPdf = (record, meta) =>
       'Sin_nombre';
     const nota = record.puntaje_total || record.nota || record.grade || '';
     const criterios = parsearCriterios(record.criterios || record['Resumen por criterios'] || record.resumen_por_criterios);
-    const fortalezas = parsearFortalezas(record.fortalezas);
-    const recomendaciones = parsearRecomendaciones(record.recomendaciones);
+    const fortalezas = parsearFortalezas(record.fortalezas || record.Fortalezas || record.FORTALEZAS);
+    const recomendaciones = parsearRecomendaciones(record.recomendaciones || record.Recomendaciones || record.RECOMENDACIONES);
 
-    // Título
-    doc.fontSize(20).fillColor('#1f2937').font('Helvetica-Bold').text('Devolución de Corrección', {
+    // Función auxiliar para agregar espaciado vertical (en mm)
+    const addSpace = (mm) => doc.moveDown(mm / 5); // Aproximación para moveDown
+
+    // Símbolos para criterios
+    const getSymbol = (estado) => {
+      switch (estado) {
+        case 'ok': return '[OK]';
+        case 'error': return '[X]';
+        case 'warning': return '[!]';
+        default: return '•';
+      }
+    };
+
+    // Título principal
+    doc.fontSize(20).fillColor('#1f2937').font('Helvetica-Bold').text('Devolucion de Correccion', {
       align: 'center',
     });
-    doc.moveDown(1);
+    addSpace(5);
 
-    // Meta info
-    doc.fontSize(11).fillColor('#4b5563').font('Helvetica');
-    doc.text(`Alumno: ${alumno}`);
-    doc.moveDown(0.5);
+    // Información del alumno
+    doc.fontSize(12).fillColor('#1f2937').font('Helvetica');
+    doc.text(`Alumno: ${alumno}`, { bold: true });
 
+    // Nota/Puntaje destacado
     if (nota) {
-      doc.fontSize(16).fillColor('#059669').font('Helvetica-Bold');
-      doc.text(`Puntaje total: ${nota}`, { align: 'center' });
-      doc.moveDown(1);
+      addSpace(2);
+      doc.fontSize(14).fillColor('#059669').font('Helvetica-Bold');
+      doc.text(`Puntaje Total: ${nota}`, { align: 'center' });
     }
 
-    // Criterios
-    doc.font('Helvetica-Bold').fontSize(14).fillColor('#1f2937').text('Criterios de Evaluación');
-    doc.moveDown(0.3);
-    doc.font('Helvetica').fontSize(11);
-    criterios.forEach((c) => {
-      doc.fillColor(criteriaColor(c.estado)).text(`${c.titulo}`, { continued: false });
-      if (c.descripcion) {
-        doc.fillColor('#6b7280').fontSize(10).text(c.descripcion, { indent: 10 });
-      }
-      doc.moveDown(0.2).fontSize(11).fillColor('#1f2937');
-    });
-    doc.moveDown(0.5);
+    addSpace(3);
 
-    // Fortalezas
+    // Criterios de Evaluación
+    if (criterios.length) {
+      doc.font('Helvetica-Bold').fontSize(16).fillColor('#374151').text('Criterios de Evaluacion');
+      addSpace(2);
+
+      doc.font('Helvetica').fontSize(11);
+      criterios.forEach((c) => {
+        const simbolo = getSymbol(c.estado);
+        const color = criteriaColor(c.estado);
+
+        // Título del criterio con símbolo
+        doc.fillColor(color).text(`${simbolo} ${c.titulo}`, {
+          indent: 15,
+          continued: false,
+        });
+
+        // Descripción (si existe) con indentación adicional
+        if (c.descripcion) {
+          doc.fillColor('#374151').fontSize(11);
+          doc.text(`   ${c.descripcion}`, {
+            indent: 15,
+            continued: false
+          });
+        }
+
+        addSpace(0.8);
+      });
+
+      addSpace(2);
+    }
+
+    // Fortalezas Detectadas
     if (fortalezas.length) {
-      doc.font('Helvetica-Bold').fontSize(14).fillColor('#1f2937').text('Fortalezas');
-      doc.moveDown(0.3);
+      doc.font('Helvetica-Bold').fontSize(16).fillColor('#374151').text('Fortalezas Detectadas');
+      addSpace(1);
+
       doc.font('Helvetica').fontSize(11).fillColor('#374151');
-      fortalezas.forEach((f) => doc.text(`• ${f}`));
-      doc.moveDown(0.5);
+      fortalezas.forEach((f) => {
+        doc.text(`• ${f}`, {
+          indent: 15,
+          continued: false
+        });
+        addSpace(0.5);
+      });
+
+      addSpace(2);
     }
 
     // Recomendaciones
     if (recomendaciones.length) {
-      doc.font('Helvetica-Bold').fontSize(14).fillColor('#1f2937').text('Recomendaciones');
-      doc.moveDown(0.3);
+      doc.font('Helvetica-Bold').fontSize(16).fillColor('#374151').text('Recomendaciones');
+      addSpace(1);
+
       doc.font('Helvetica').fontSize(11).fillColor('#374151');
-      recomendaciones.forEach((rec, idx) => doc.text(`${idx + 1}. ${rec}`));
-      doc.moveDown(0.5);
+      recomendaciones.forEach((rec, idx) => {
+        doc.text(`${idx + 1}. ${rec}`, {
+          indent: 15,
+          continued: false
+        });
+        addSpace(0.5);
+      });
     }
+
+    // Pie de página con fecha
+    addSpace(2);
+    const fecha = new Date().toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    doc.fontSize(9).fillColor('#6b7280').font('Helvetica').text(fecha, {
+      align: 'center'
+    });
+
     doc.end();
   });
 
